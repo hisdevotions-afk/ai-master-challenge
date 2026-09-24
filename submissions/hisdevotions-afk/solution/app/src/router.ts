@@ -9,7 +9,9 @@ const subscribe = (cb: () => void) => {
 
 export function useRoute() {
   const hash = useSyncExternalStore(subscribe, () => window.location.hash);
-  useEffect(() => window.scrollTo(0, 0), [hash.split("?")[0]]);
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [hash.split("?")[0]]);
   const [path, query = ""] = hash.replace(/^#\/?/, "").split("?");
   return {
     parts: path.split("/").filter(Boolean).map(decodeURIComponent),
