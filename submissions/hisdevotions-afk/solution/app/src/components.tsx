@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useRef, useState, type MouseEvent, type ReactNode } from "react";
 import { useApp } from "./data";
 import { link } from "./router";
 import { money, pct } from "./format";
@@ -77,14 +77,34 @@ export function CurveChart({ curve, meta, age }: { curve: CurvePoint[]; meta: Me
   const W = 900, H = 280, L = 44, B = 28, T = 10, R = 28;
   const x = (a: number) => L + (a / meta.max_cycle) * (W - L - R);
   const y = (p: number) => T + (1 - p) * (H - T - B);
+  const reliable = curve.filter((c) => c.n >= MIN_N);
   const line = (f: (c: CurvePoint) => number) =>
-    curve.filter((c) => c.n >= MIN_N).map((c, i) => `${i ? "L" : "M"}${x(c.age).toFixed(1)},${y(f(c)).toFixed(1)}`).join("");
-  const lastAge = curve.filter((c) => c.n >= MIN_N).at(-1)?.age ?? 0;
+    reliable.map((c, i) => `${i ? "L" : "M"}${x(c.age).toFixed(1)},${y(f(c)).toFixed(1)}`).join("");
+  const firstAge = reliable[0]?.age ?? 0;
+  const lastAge = reliable.at(-1)?.age ?? 0;
   const closeArea = `${line((c) => c.close_soon)}L${x(lastAge)},${y(0)}L${x(0)},${y(0)}Z`;
-  const marker = age != null && age < meta.max_cycle ? curve[age] : null;
+  const dealAge = age != null && age < meta.max_cycle ? age : null;
+
+  const svgRef = useRef<SVGSVGElement>(null);
+  const [hoverAge, setHoverAge] = useState<number | null>(null);
+  // Passa o mouse pra ver qualquer idade, não só a do deal aberto: o gráfico
+  // vira ferramenta de consulta, não só uma foto de UM ponto.
+  const onMove = (e: MouseEvent<SVGSVGElement>) => {
+    const rect = svgRef.current?.getBoundingClientRect();
+    if (!rect || rect.width === 0) return;
+    const internalX = ((e.clientX - rect.left) / rect.width) * W;
+    const a = Math.round(((internalX - L) / (W - L - R)) * meta.max_cycle);
+    setHoverAge(Math.min(Math.max(a, firstAge), lastAge));
+  };
+  const shownAge = hoverAge ?? dealAge;
+  const point = shownAge != null ? curve[shownAge] : null;
+
   return (
     <figure className="curve">
-      <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Chance de ganhar e de fechar em 30 dias conforme a idade do deal">
+      <svg
+        ref={svgRef} viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Chance de ganhar e de fechar em 30 dias conforme a idade do deal; passe o mouse para consultar qualquer idade"
+        onMouseMove={onMove} onMouseLeave={() => setHoverAge(null)}
+      >
         <rect x={x(meta.window_start)} y={T} width={x(meta.max_cycle) - x(meta.window_start)} height={H - T - B} className="z-fechar" />
         {[0, 0.25, 0.5, 0.75, 1].map((p) => (
           <g key={p}>
@@ -98,13 +118,20 @@ export function CurveChart({ curve, meta, age }: { curve: CurvePoint[]; meta: Me
         <path d={closeArea} className="area-close" />
         <path d={line((c) => c.win)} className="line-win" />
         <line x1={L} x2={W - R} y1={y(meta.base_rate)} y2={y(meta.base_rate)} className="line-base" />
-        {marker && (
-          <g>
-            <line x1={x(marker.age)} x2={x(marker.age)} y1={T} y2={H - B} className="line-now" />
-            <circle cx={x(marker.age)} cy={y(marker.win)} r="5" className="dot-now" />
+        {point && (
+          <g className={hoverAge != null ? "curve-hover" : "curve-marker"}>
+            <line x1={x(point.age)} x2={x(point.age)} y1={T} y2={H - B} className="line-now" />
+            <circle cx={x(point.age)} cy={y(point.win)} r="5" className="dot-now" />
           </g>
         )}
       </svg>
+      {point && (
+        <div className="curve-tooltip" style={{ left: `${(x(point.age) / W) * 100}%` }}>
+          <strong>{point.age} dias</strong>
+          <span>Ganhar: {pct(point.win)}</span>
+          <span>Fechar em 30d: {pct(point.close_soon)}</span>
+        </div>
+      )}
       <figcaption>
         <span className="key key-win">Chance de ganhar, para quem chegou a essa idade</span>
         <span className="key key-close">Chance de fechar nos próximos 30 dias</span>
@@ -149,11 +176,19 @@ export function ReasonList({ reasons }: { reasons: Reason[] }) {
 export function DecisionButtons({ deal }: { deal: OpenDeal }) {
   const { decisions, decide } = useApp();
   const current = decisions[deal.id];
+  const [note, setNote] = useState(current?.note ?? "");
   if (current)
     return (
       <div className="decision done">
-        Marcado como {current.kind}.
-        <button className="btn-link" onClick={() => decide(deal.id, null)}>Desfazer</button>
+        <p>
+          Marcado como {current.kind}.
+          <button className="btn-link" onClick={() => decide(deal.id, null)}>Desfazer</button>
+        </p>
+        <input
+          type="text" className="decision-note" placeholder="Nota (opcional): por que essa decisão?"
+          value={note} onChange={(e) => setNote(e.target.value)}
+          onBlur={() => note !== (current.note ?? "") && decide(deal.id, current.kind, note)}
+        />
       </div>
     );
   // O botão sugerido (ver suggest_decide no motor) vem destacado; o outro

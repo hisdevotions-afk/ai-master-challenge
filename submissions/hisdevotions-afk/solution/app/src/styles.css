@@ -253,6 +253,11 @@ button.nav-operator:hover { background: color-mix(in srgb, white 8%, transparent
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .nav-foot-date { margin: 0; font-size: 0.75rem; color: color-mix(in srgb, #f3ede0 56%, transparent); } /* >= 4.5:1 no navy */
+.nav-backup { display: flex; flex-direction: column; gap: 0.3rem; align-items: flex-start; }
+.nav-backup .btn-link { font-size: 0.75rem; color: color-mix(in srgb, #f3ede0 70%, transparent); }
+.nav-backup .btn-link:hover { color: #f3ede0; }
+.nav-backup .btn-link:disabled { opacity: 0.4; cursor: default; text-decoration: none; }
+.nav-backup-error { margin: 0; font-size: 0.75rem; color: var(--decidir-on-navy); }
 
 .main { grid-area: main; min-width: 0; }
 main { max-width: 1440px; padding: 2rem 2.5rem 5rem; animation: rise 0.5s var(--ease) both; }
@@ -392,7 +397,13 @@ ul.plain li::before { content: ""; position: absolute; left: 0; top: 0.62em; wid
 .deal-product { font-weight: 500; color: var(--muted); font-size: 0.9375rem; }
 .no-account { color: var(--warn); }
 .decision { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; margin-top: 0.6rem; }
-.decision.done { color: var(--muted); font-size: 0.875rem; }
+.decision.done { display: grid; gap: 0.35rem; margin-top: 0.6rem; color: var(--muted); font-size: 0.875rem; }
+.decision.done p { display: flex; gap: 0.5rem; align-items: center; }
+.decision-note {
+  font: inherit; font-size: 0.8125rem; color: var(--ink); background: var(--surface);
+  border: 1px solid var(--line-strong); border-radius: var(--radius-s); padding: 0.35rem 0.6rem; max-width: 32rem;
+}
+.decision-note:focus-visible { border-color: var(--focus); outline: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--focus) 18%, transparent); }
 
 /* linha de zumbi: o que importa aqui é quanto o deal infla o forecast, não score/régua repetidos */
 .stalled-row .stalled-value { display: grid; justify-items: end; gap: 0.15rem; text-align: right; align-self: center; }
@@ -510,6 +521,14 @@ table.deals { width: 100%; border-collapse: collapse; }
   background: color-mix(in srgb, var(--focus) 10%, var(--surface)); border: 1px solid color-mix(in srgb, var(--focus) 30%, transparent);
   font-size: 0.875rem; font-weight: 600;
 }
+/* confirmação some assim que aplicada; isto fica até a próxima ação em lote ou até desfazer — mesmo padrão do Desfazer por deal, sem timer */
+.bulk-undo {
+  display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap;
+  padding: 0.6rem 1rem; margin-bottom: 0.75rem; border-radius: var(--radius-m);
+  background: var(--avancar-soft); color: var(--avancar); border: 1px solid color-mix(in srgb, var(--avancar) 30%, transparent);
+  font-size: 0.875rem; font-weight: 600;
+}
+.bulk-undo .btn-link { color: var(--avancar); text-decoration: underline; }
 .cell-deal { display: grid; text-decoration: none; font-weight: 700; min-width: 12rem; color: var(--ink); }
 .cell-deal:hover { color: var(--fechar); text-decoration: underline; }
 .cell-ruler { min-width: 150px; }
@@ -601,8 +620,8 @@ table.deals { width: 100%; border-collapse: collapse; }
 .context ul li { position: relative; padding-left: 1.25rem; line-height: 1.55; }
 .context ul li::before { content: ""; position: absolute; left: 0; top: 0.6em; width: 5px; height: 5px; border-radius: 50%; background: var(--gold); }
 
-.curve { margin: 1.25rem 0 0; background: var(--surface); border-radius: var(--radius-m); padding: 1.25rem; box-shadow: var(--shadow-sm); border: 1px solid var(--line); }
-.curve svg { width: 100%; height: auto; display: block; }
+.curve { position: relative; margin: 1.25rem 0 0; background: var(--surface); border-radius: var(--radius-m); padding: 1.25rem; box-shadow: var(--shadow-sm); border: 1px solid var(--line); }
+.curve svg { width: 100%; height: auto; display: block; cursor: crosshair; }
 .curve .grid { stroke: var(--line); stroke-width: 1; }
 .curve .axis { fill: var(--muted); font-size: 13px; font-family: "Manrope", sans-serif; }
 .curve .area-close { fill: var(--fechar); opacity: 0.18; }
@@ -611,7 +630,16 @@ table.deals { width: 100%; border-collapse: collapse; }
 .curve .line-base { stroke: var(--muted); stroke-dasharray: 4 4; }
 .curve .line-now { stroke: var(--fechar); stroke-width: 1.5; }
 .curve .dot-now { fill: var(--surface); stroke: var(--fechar); stroke-width: 2.5; }
+.curve .curve-hover .line-now, .curve .curve-hover .dot-now { stroke: var(--focus); } /* passando o mouse: distingue do marcador fixo do deal */
 .curve figcaption { display: flex; flex-wrap: wrap; gap: 0.3rem 1.5rem; font-size: 0.8125rem; color: var(--muted); margin-top: 0.75rem; }
+
+.curve-tooltip {
+  position: absolute; top: 1.35rem; transform: translateX(-50%); z-index: 2; pointer-events: none;
+  background: var(--navy); color: #f3ede0; padding: 0.5rem 0.7rem; border-radius: var(--radius-s);
+  font-size: 0.8125rem; line-height: 1.4; white-space: nowrap; box-shadow: var(--shadow-md);
+}
+.curve-tooltip strong { display: block; font-weight: 800; margin-bottom: 0.15rem; }
+.curve-tooltip span { display: block; color: color-mix(in srgb, #f3ede0 78%, transparent); }
 .key::before { content: ""; display: inline-block; width: 14px; height: 3px; margin-right: 6px; vertical-align: middle; border-radius: 2px; }
 .key-win::before { background: var(--navy); }
 .key-close::before { background: var(--fechar); opacity: 0.4; height: 10px; }
@@ -622,6 +650,8 @@ table.deals { width: 100%; border-collapse: collapse; }
 /* ─── forecast ───────────────────────────────────────────────────────────── */
 
 .stack { display: flex; height: 32px; border-radius: var(--radius-s); overflow: hidden; gap: 2px; box-shadow: var(--shadow-sm); }
+.stack a { display: block; transition: filter 0.15s var(--ease); }
+.stack a:hover, .stack a:focus-visible { filter: brightness(1.15); }
 .stack-fechar { background: var(--fechar); }
 .stack-avancar { background: var(--avancar); }
 .stack-prospectar { background: var(--prospectar); }
@@ -668,7 +698,7 @@ table.deals { width: 100%; border-collapse: collapse; }
   .nav nav a[aria-current="page"]::before { left: 0.7rem; right: 0.7rem; top: auto; bottom: 0; transform: none; width: auto; height: 3px; }
   .nav-section { display: none; }
   .nav-foot { flex: none; margin: 0; padding: 0; border: 0; }
-  .nav-foot-date { display: none; }
+  .nav-foot-date, .nav-backup { display: none; }
   .filters { padding: 0.75rem 1rem; position: static; }
   .filter-field { flex: 1 1 9rem; }
   select { min-width: 0; width: 100%; }

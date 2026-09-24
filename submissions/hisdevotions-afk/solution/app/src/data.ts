@@ -47,7 +47,7 @@ export const dealInScope = (d: Deal, f: Filters) => inScope(d, d.agent, f);
 // ponytail: localStorage por navegador; em produção isso gravaria de volta no CRM.
 
 export type DecisionKind = "requalificado" | "encerrado";
-export type Decisions = Record<string, { kind: DecisionKind; at: string }>;
+export type Decisions = Record<string, { kind: DecisionKind; at: string; note?: string }>;
 
 export const store = {
   read<T>(key: string, fallback: T): T {
@@ -72,7 +72,8 @@ export interface AppState {
   filters: Filters;
   setFilters: (f: Filters) => void;
   decisions: Decisions;
-  decide: (id: string, kind: DecisionKind | null) => void;
+  decide: (id: string, kind: DecisionKind | null, note?: string) => void;
+  importDecisions: (data: Decisions) => void;
 }
 
 export const AppContext = createContext<AppState | null>(null);

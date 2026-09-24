@@ -104,13 +104,15 @@ function DealTable(props: {
   limit: number;
   setLimit: (n: number) => void;
   /** Decidir é a única fila onde nenhuma característica distingue um deal do outro
-      (ver Método/testes no README) — revisar 1.300 um a um não muda a decisão,
-      então aqui, e só aqui, dá pra decidir em lote. */
+      (ver os testes de significância no README) — revisar 1.300 um a um não muda
+      a decisão, então aqui, e só aqui, dá pra decidir em lote. */
   bulkDecide?: boolean;
 }) {
   const { model, decide } = useApp();
   const { sort, bulkDecide } = props;
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [confirming, setConfirming] = useState<DecisionKind | null>(null);
+  const [lastBulk, setLastBulk] = useState<{ kind: DecisionKind; ids: string[] } | null>(null);
   const rows = [...props.deals].sort((a, b) => {
     const va = sortValue(a, sort.key), vb = sortValue(b, sort.key);
     return (va < vb ? -1 : va > vb ? 1 : b.ev_soon - a.ev_soon) * sort.dir;
@@ -126,20 +128,38 @@ function DealTable(props: {
       next.has(id) ? next.delete(id) : next.add(id);
       return next;
     });
-  const applyBulk = (kind: DecisionKind) => {
-    selected.forEach((id) => decide(id, kind));
+  const confirmBulk = () => {
+    if (!confirming) return;
+    const ids = [...selected];
+    ids.forEach((id) => decide(id, confirming));
+    setLastBulk({ kind: confirming, ids });
     setSelected(new Set());
+    setConfirming(null);
+  };
+  const undoBulk = () => {
+    if (!lastBulk) return;
+    lastBulk.ids.forEach((id) => decide(id, null));
+    setLastBulk(null);
   };
 
   return (
     <>
       {bulkDecide && visible.length > 0 && (
         <div className="bulk-bar">
-          {selected.size > 0 ? (
+          {confirming ? (
+            <>
+              <span>
+                Confirma {confirming === "encerrado" ? "encerrar" : "requalificar"}{" "}
+                {plural(selected.size, "deal", "deals")}?
+              </span>
+              <button className="btn" onClick={confirmBulk}>Sim, confirmar</button>
+              <button className="btn-link" onClick={() => setConfirming(null)}>Cancelar</button>
+            </>
+          ) : selected.size > 0 ? (
             <>
               <span>{plural(selected.size, "selecionado", "selecionados")}</span>
-              <button className="btn" onClick={() => applyBulk("requalificado")}>Requalifiquei</button>
-              <button className="btn btn-quiet" onClick={() => applyBulk("encerrado")}>Encerrar como perdido</button>
+              <button className="btn" onClick={() => setConfirming("requalificado")}>Requalifiquei</button>
+              <button className="btn btn-quiet" onClick={() => setConfirming("encerrado")}>Encerrar como perdido</button>
               <button className="btn-link" onClick={() => setSelected(new Set())}>Limpar seleção</button>
             </>
           ) : (
@@ -152,6 +172,15 @@ function DealTable(props: {
               )}
             </>
           )}
+        </div>
+      )}
+      {lastBulk && (
+        <div className="bulk-undo">
+          <span>
+            {plural(lastBulk.ids.length, "deal", "deals")}{" "}
+            {lastBulk.kind === "encerrado" ? "encerrado(s) como perdido" : "requalificado(s)"}.
+          </span>
+          <button className="btn-link" onClick={undoBulk}>Desfazer</button>
         </div>
       )}
       <div className="table-wrap">

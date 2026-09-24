@@ -1,4 +1,4 @@
-import { Component, StrictMode, Suspense, use, useState, type FormEvent, type ReactNode } from "react";
+import { Component, StrictMode, Suspense, use, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { createRoot } from "react-dom/client";
 import { AppContext, NO_FILTERS, loadModel, store, useApp, useScopedOpen, type Decisions, type DecisionKind, type Filters } from "./data";
 import type { Agent } from "./types";
@@ -34,6 +34,16 @@ function NavIcon({ slug }: { slug: string }) {
 }
 
 /** CSV do recorte atual (região/manager/vendedor). */
+function downloadBlob(content: string, filename: string, type: string) {
+  const blob = new Blob([content], { type });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 function csvEscape(v: string): string {
   return /[;"\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
 }
@@ -52,13 +62,7 @@ function exportPipelineCsv(deals: import("./types").OpenDeal[]) {
     money(d.price),
   ]);
   const csv = [header, ...rows].map((r) => r.map(csvEscape).join(";")).join("\r\n");
-  const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `pipeline-g4-${new Date().toISOString().slice(0, 10)}.csv`;
-  a.click();
-  URL.revokeObjectURL(url);
+  downloadBlob("﻿" + csv, `pipeline-g4-${new Date().toISOString().slice(0, 10)}.csv`, "text/csv;charset=utf-8;");
 }
 
 function Loaded() {
@@ -69,16 +73,27 @@ function Loaded() {
     setFiltersState(f);
     store.write("filters", f);
   };
-  const decide = (id: string, kind: DecisionKind | null) =>
+  const decide = (id: string, kind: DecisionKind | null, note?: string) =>
     setDecisions((prev) => {
       const next = { ...prev };
-      if (kind) next[id] = { kind, at: new Date().toISOString() };
-      else delete next[id];
+      if (kind) {
+        const existing = prev[id];
+        // mesma decisão de novo (ex: só editando a nota) preserva o "at" original
+        next[id] = { kind, at: existing?.kind === kind ? existing.at : new Date().toISOString(), note: note ?? existing?.note };
+      } else {
+        delete next[id];
+      }
+      store.write("decisions", next);
+      return next;
+    });
+  const importDecisions = (data: Decisions) =>
+    setDecisions((prev) => {
+      const next = { ...prev, ...data };
       store.write("decisions", next);
       return next;
     });
   return (
-    <AppContext value={{ model, filters, setFilters, decisions, decide }}>
+    <AppContext value={{ model, filters, setFilters, decisions, decide, importDecisions }}>
       <Shell />
     </AppContext>
   );
@@ -92,6 +107,47 @@ function BrandMark() {
 function initialsOf(name: string): string {
   const parts = name.trim().split(/\s+/);
   return parts.length === 1 ? parts[0].slice(0, 2).toUpperCase() : (parts[0][0] + parts.at(-1)![0]).toUpperCase();
+}
+
+/** Decisão só vive no localStorage deste navegador (ver Limitações no README) —
+    baixar/importar é o jeito de levar isso pra outro navegador ou fazer backup
+    antes de limpar o cache, sem precisar de servidor nenhum. */
+function DecisionsBackup() {
+  const { decisions, importDecisions } = useApp();
+  const [error, setError] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const count = Object.keys(decisions).length;
+
+  const exportJson = () => {
+    downloadBlob(JSON.stringify(decisions, null, 2), `decisoes-pipeline-em-foco-${new Date().toISOString().slice(0, 10)}.json`, "application/json");
+  };
+
+  const importJson = async (file: File) => {
+    setError(null);
+    try {
+      const data = JSON.parse(await file.text());
+      const valid = data && typeof data === "object" &&
+        Object.values(data).every((v: any) => v && (v.kind === "requalificado" || v.kind === "encerrado"));
+      if (!valid) throw new Error("formato inesperado");
+      importDecisions(data);
+    } catch {
+      setError("Não consegui ler esse arquivo — exporte um novo daqui e tente de novo.");
+    }
+  };
+
+  return (
+    <div className="nav-backup">
+      <button type="button" className="btn-link" onClick={exportJson} disabled={count === 0}>
+        Baixar decisões ({int(count)})
+      </button>
+      <button type="button" className="btn-link" onClick={() => fileRef.current?.click()}>Importar decisões</button>
+      <input
+        ref={fileRef} type="file" accept="application/json" className="sr-only" tabIndex={-1}
+        onChange={(e) => { const f = e.target.files?.[0]; if (f) importJson(f); e.target.value = ""; }}
+      />
+      {error && <p className="nav-backup-error">{error}</p>}
+    </div>
+  );
 }
 
 function Topbar() {
@@ -221,6 +277,7 @@ function Shell() {
             </div>
           )}
           <p className="nav-foot-date">Dados até {longDate(model.meta.reference_date)}</p>
+          <DecisionsBackup />
         </div>
       </aside>
       <div className="main">
