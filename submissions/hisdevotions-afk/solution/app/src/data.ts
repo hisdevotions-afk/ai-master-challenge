@@ -100,3 +100,19 @@ export const PRIORITY: Record<Bucket, (a: OpenDeal, b: OpenDeal) => number> = {
   avancar: (a, b) => b.ev - a.ev,
   prospectar: (a, b) => b.price - a.price,
 };
+
+// ─── encerrados recentes (higiene do funil) ──────────────────────────────────
+// "Encerrados na última semana" na aba do Pipeline: só o que o vendedor marcou
+// como perdido na última semana, para revisar se o motivo ainda vale enquanto
+// está fresco — decisão antiga não deve reaparecer como "acabou de encerrar".
+
+export const RECENT_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
+
+/** Deals no escopo que o vendedor marcou como encerrado nos últimos RECENT_WINDOW_MS. */
+export function recentlyClosed(model: Model, filters: Filters, decisions: Decisions): OpenDeal[] {
+  const cutoff = Date.now() - RECENT_WINDOW_MS;
+  return model.open.filter((d) => {
+    const dec = decisions[d.id];
+    return dec?.kind === "encerrado" && dealInScope(d, filters) && new Date(dec.at).getTime() >= cutoff;
+  });
+}

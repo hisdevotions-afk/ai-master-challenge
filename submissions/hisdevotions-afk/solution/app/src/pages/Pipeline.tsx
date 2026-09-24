@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { AgeRuler, BUCKETS, BUCKET_ORDER, DealName, Empty, Score } from "../components";
-import { PRIORITY, dealInScope, useApp, useScopedOpen, type DecisionKind } from "../data";
-import { int, money, pct, plural } from "../format";
+import { PRIORITY, dealInScope, recentlyClosed, useApp, useScopedOpen, type DecisionKind } from "../data";
+import { int, money, pct, plural, shortDateTime } from "../format";
 import { link } from "../router";
 import type { Bucket, OpenDeal } from "../types";
 
@@ -24,6 +24,8 @@ export function Pipeline({ query }: { query: URLSearchParams }) {
   const fila = query.get("fila") as Bucket | null;
   const semConta = query.get("semconta") === "1";
   const board = query.get("ver") === "quadro";
+  const encerrados = query.get("encerrados") === "1";
+  const closed = recentlyClosed(model, filters, decisions);
   const [search, setSearch] = useState(() => query.get("busca") ?? "");
   const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({ key: "score", dir: -1 });
   const [limit, setLimit] = useState(PAGE);
@@ -48,20 +50,36 @@ export function Pipeline({ query }: { query: URLSearchParams }) {
     <div>
       <header className="page-head">
         <h1>Pipeline</h1>
-        <p className="lede">
-          {int(visible.length)} de {int(scoped.length)} deals abertos no seu recorte.
-          {decidedCount > 0 && ` ${plural(decidedCount, "deal já decidido fica", "deals já decididos ficam")} fora desta lista.`}
-        </p>
+        {encerrados ? (
+          <p className="lede">
+            {plural(closed.length, "deal encerrado", "deals encerrados")} como perdido na última semana, no seu recorte — review de higiene, não fila de ação.
+          </p>
+        ) : (
+          <p className="lede">
+            {int(visible.length)} de {int(scoped.length)} deals abertos no seu recorte.
+            {decidedCount > 0 && ` ${plural(decidedCount, "deal já decidido fica", "deals já decididos ficam")} fora desta lista.`}
+          </p>
+        )}
       </header>
 
       <div className="toolbar">
         <nav className="tabs" aria-label="Filas">
-          <a href={href({ fila: null })} aria-current={!fila ? "page" : undefined}>Todas</a>
+          <a href={href({ encerrados: null, fila: null })} aria-current={!fila && !encerrados ? "page" : undefined}>Todas</a>
           {BUCKET_ORDER.map((b) => (
-            <a key={b} href={href({ fila: b })} aria-current={fila === b ? "page" : undefined} className={`tab-${b}`}>
+            <a key={b} href={href({ encerrados: null, fila: b })} aria-current={fila === b ? "page" : undefined} className={`tab-${b}`}>
               {BUCKETS[b].label} <span className="count">{int(scoped.filter((d) => d.bucket === b).length)}</span>
             </a>
           ))}
+          {closed.length > 0 && (
+            <a
+              href={href({ encerrados: encerrados ? null : "1", fila: null })}
+              aria-current={encerrados ? "page" : undefined}
+              className="tab-encerrados"
+              title="Deals que você encerrou como perdido na última semana — higiene do funil"
+            >
+              Encerrados na semana <span className="count">{int(closed.length)}</span>
+            </a>
+          )}
         </nav>
         <input
           type="search"
@@ -78,7 +96,13 @@ export function Pipeline({ query }: { query: URLSearchParams }) {
         </a>
       </div>
 
-      {visible.length === 0 ? (
+      {encerrados ? (
+        closed.length === 0 ? (
+          <Empty>Nenhum deal encerrado na última semana no seu recorte.</Empty>
+        ) : (
+          <ClosedTable deals={closed} />
+        )
+      ) : visible.length === 0 ? (
         <Empty>Nenhum deal com esses filtros. Limpe a busca ou troque de fila.</Empty>
       ) : board ? (
         <Board deals={visible} />
@@ -86,6 +110,51 @@ export function Pipeline({ query }: { query: URLSearchParams }) {
         <DealTable deals={visible} sort={sort} setSort={setSort} limit={limit} setLimit={setLimit} bulkDecide={fila === "decidir"} />
       )}
     </div>
+  );
+}
+
+/** Aba de higiene: os deals que o vendedor encerrou como perdido na última
+    semana. Colunas enxutas de propósito (não é a fila de decisão) — importa o
+    que foi fechado, quando e por quê, pra reabrir com contexto se o motivo
+    ainda valer. */
+function ClosedTable({ deals }: { deals: OpenDeal[] }) {
+  const { decisions } = useApp();
+  return (
+    <>
+      <div className="table-wrap">
+        <table className="deals">
+          <thead>
+            <tr>
+              <th scope="col" className="cell-pin">Deal</th>
+              <th scope="col">Vendedor</th>
+              <th scope="col">Encerrado em</th>
+              <th scope="col">Nota da decisão</th>
+            </tr>
+          </thead>
+          <tbody>
+            {deals.map((d) => {
+              const dec = decisions[d.id];
+              return (
+                <tr key={d.id} className="row-encerrado">
+                  <td className="cell-pin">
+                    <a href={link("deal", d.id)} className="cell-deal"><DealName deal={d} /></a>
+                  </td>
+                  <td>{d.agent}</td>
+                  <td>{dec ? shortDateTime(dec.at) : "—"}</td>
+                  <td className="cell-note">
+                    {dec?.note ? <span>{dec.note}</span> : <span className="muted">Sem nota</span>}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      <p className="context">
+        Esses deals voltam pra fila se você desfizer a decisão. Revisar enquanto está fresco evita
+        "encerrado por engano" virar perda silenciosa.
+      </p>
+    </>
   );
 }
 
@@ -113,6 +182,10 @@ function DealTable(props: {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [confirming, setConfirming] = useState<DecisionKind | null>(null);
   const [lastBulk, setLastBulk] = useState<{ kind: DecisionKind; ids: string[] } | null>(null);
+  // desfazer em três modos (mesmo padrão discreto do undo por deal, sem timer)
+  const [undoOpen, setUndoOpen] = useState(false);
+  const [undoSel, setUndoSel] = useState<Set<string>>(new Set());
+  const [undoNames, setUndoNames] = useState("");
   const rows = [...props.deals].sort((a, b) => {
     const va = sortValue(a, sort.key), vb = sortValue(b, sort.key);
     return (va < vb ? -1 : va > vb ? 1 : b.ev_soon - a.ev_soon) * sort.dir;
@@ -133,13 +206,50 @@ function DealTable(props: {
     const ids = [...selected];
     ids.forEach((id) => decide(id, confirming));
     setLastBulk({ kind: confirming, ids });
+    setUndoSel(new Set(ids)); // por padrão desfaz-se tudo; o painel deixa estreitar
+    setUndoNames("");
+    setUndoOpen(false);
     setSelected(new Set());
     setConfirming(null);
   };
-  const undoBulk = () => {
-    if (!lastBulk) return;
-    lastBulk.ids.forEach((id) => decide(id, null));
+  const undoDeals: OpenDeal[] = lastBulk
+    ? lastBulk.ids
+        .map((id) => model.byId.get(id))
+        .filter((d): d is OpenDeal => !!d && (d.stage === "Prospecting" || d.stage === "Engaging"))
+    : [];
+  /** Chama decide(id, null) pra cada id e limpa o estado de undo. */
+  const setDecisionsOnUndo = (ids: Iterable<string>) => {
+    for (const id of ids) decide(id, null);
     setLastBulk(null);
+    setUndoOpen(false);
+  };
+  const undoAll = () => lastBulk && setDecisionsOnUndo(lastBulk.ids);
+  const undoSelected = () => {
+    if (undoSel.size === 0) return;
+    setDecisionsOnUndo(undoSel);
+  };
+  const toggleUndo = (id: string) =>
+    setUndoSel((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  // "ir por pesquisa": colar nomes/contas separadas por vírgula seleciona só esses
+  const applyUndoNames = () => {
+    if (!lastBulk) return;
+    const needles = undoNames.split(/[\n,;]+/).map((s) => s.trim().toLowerCase()).filter(Boolean);
+    if (needles.length === 0) return;
+    setUndoSel((prev) => {
+      const next = new Set(prev);
+      for (const id of lastBulk.ids) {
+        const d = model.byId.get(id);
+        if (!d || (d.stage !== "Prospecting" && d.stage !== "Engaging")) continue;
+        const hay = `${d.account ?? ""} ${d.product} ${d.id}`.toLowerCase();
+        if (needles.some((n) => hay.includes(n))) next.add(id);
+      }
+      return next;
+    });
+    setUndoNames("");
   };
 
   return (
@@ -176,11 +286,54 @@ function DealTable(props: {
       )}
       {lastBulk && (
         <div className="bulk-undo">
-          <span>
-            {plural(lastBulk.ids.length, "deal", "deals")}{" "}
-            {lastBulk.kind === "encerrado" ? "encerrado(s) como perdido" : "requalificado(s)"}.
-          </span>
-          <button className="btn-link" onClick={undoBulk}>Desfazer</button>
+          <div className="bulk-undo-bar">
+            <span>
+              {plural(lastBulk.ids.length, "deal", "deals")}{" "}
+              {lastBulk.kind === "encerrado" ? "encerrado(s) como perdido" : "requalificado(s)"}.
+            </span>
+            <button className="btn-link" onClick={undoAll}>Desfazer todos</button>
+            <button
+              className="btn-link" onClick={() => setUndoOpen((v) => !v)} aria-expanded={undoOpen}
+              aria-controls="bulk-undo-panel"
+            >
+              {undoOpen ? "Fechar seleção" : "Escolher quais desfazer"}
+            </button>
+          </div>
+          {undoOpen && (
+            <div className="bulk-undo-panel" id="bulk-undo-panel">
+              <div className="bulk-undo-names">
+                <input
+                  type="text" value={undoNames} placeholder="Colar nomes/contas para desfazer só esses — separados por vírgula"
+                  aria-label="Nomes de deals para desfazer"
+                  onChange={(e) => setUndoNames(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); applyUndoNames(); } }}
+                />
+                <button className="btn-link" onClick={applyUndoNames}>Adicionar à seleção</button>
+              </div>
+              <ul className="bulk-undo-list">
+                {undoDeals.map((d) => (
+                  <li key={d.id}>
+                    <label>
+                      <input
+                        type="checkbox" checked={undoSel.has(d.id)} onChange={() => toggleUndo(d.id)}
+                        aria-label={`Desfazer ${d.account ?? "deal sem conta"}, ${d.product}`}
+                      />
+                      <DealName deal={d} />
+                    </label>
+                  </li>
+                ))}
+              </ul>
+              <div className="bulk-undo-actions">
+                <button className="btn" onClick={undoSelected} disabled={undoSel.size === 0}>
+                  {undoSel.size === lastBulk.ids.length
+                    ? "Desfazer todos"
+                    : `Desfazer ${int(undoSel.size)} ${undoSel.size === 1 ? "deal" : "deals"}`}
+                </button>
+                <button className="btn-link" onClick={() => setUndoSel(new Set(lastBulk.ids))}>Redefinir todos</button>
+                <button className="btn-link" onClick={() => setUndoSel(new Set())}>Deselecionar tudo</button>
+              </div>
+            </div>
+          )}
         </div>
       )}
       <div className="table-wrap">
