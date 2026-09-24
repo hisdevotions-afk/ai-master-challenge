@@ -48,7 +48,7 @@ Testei cada feature categórica contra simulação de acaso puro (2.000 sorteios
 - [DADO] `close_value` ≈ preço de lista (razão média 0,996) → preço do produto é proxy honesto do valor de um deal aberto.
 
 ### Onde a IA errou (até aqui)
-- **[IA] errou:** na primeira resposta, antes de ver os dados, a IA sugeriu como diferencial frases como *"esse vendedor fecha 40% menos que os pares nessa série de produto"*. O teste de significância mostrou que diferenças vendedor×série são indistinguíveis de ruído (p=0,21). Se eu tivesse aceitado, a ferramenta ranquearia deals — e exporia vendedores — com base em acaso. **Correção:** nenhuma feature entra no score sem passar no teste contra acaso; a UI mostra essas features como contexto e explica por que não pesam.
+- **[IA] errou:** na primeira resposta, antes de ver os dados, a IA sugeriu como diferencial frases como *"esse vendedor fecha 40% menos que os pares nessa série de produto"*. O teste de significância mostrou que diferenças vendedor×série são indistinguíveis de ruído (p≈0,22). Se eu tivesse aceitado, a ferramenta ranquearia deals — e exporia vendedores — com base em acaso. **Correção:** nenhuma feature entra no score sem passar no teste contra acaso; a UI mostra essas features como contexto e explica por que não pesam.
 - É exatamente o que um baseline "cola o brief" faz: pesa setor/vendedor/produto porque *parecem* relevantes.
 
 ## 3. Desenho
@@ -88,3 +88,10 @@ A extensão do Chrome travou na captura 3 vezes; em vez de insistir, a IA trocou
 
 ### Teste funcional no navegador real
 Decisão "Encerrar" persiste e tira o zumbi da fila · filtro Região=West + Vendedor=Hayden vira "Bom dia, Hayden." com 5 deals na janela · busca e contagem de decididos respeitam o recorte.
+
+## 6. Documentação e verificação final
+
+- README da submissão no template do desafio: Setup, Lógica, Limitações, Recomendações e Process Log resumido.
+- **Cada número do README foi conferido contra o `data.json`** antes de ficar no texto. Dois p-valores estavam arredondados diferente do que o app mostra (0,96 → 0,95; 0,49 → 0,48) e foram alinhados.
+- **Clone limpo da branch:** testes do motor passando, motor regenerando os dados, `npm ci` + build do app funcionando — o caminho que o avaliador vai seguir.
+- **[IA] errou no git:** o `.gitignore` da raiz do repo ignora `submissions/` (contradiz o CONTRIBUTING; não pode ser alterado pela regra do PR). O `git add -f` usado para contornar isso também atropelou o `.gitignore` interno e colocou `node_modules/`, `dist/` e caches do Python no commit. Pego na revisão do commit, antes de qualquer push; corrigido adicionando só a lista explícita de arquivos-fonte.
