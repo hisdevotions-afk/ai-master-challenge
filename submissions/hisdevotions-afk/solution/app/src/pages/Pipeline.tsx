@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { AgeRuler, BUCKETS, BUCKET_ORDER, DealName, Empty, Score } from "../components";
-import { PRIORITY, dealInScope, useApp, useScopedOpen } from "../data";
+import { PRIORITY, dealInScope, useApp, useScopedOpen, type DecisionKind } from "../data";
 import { int, money, pct, plural } from "../format";
 import { link } from "../router";
 import type { Bucket, OpenDeal } from "../types";
@@ -83,7 +83,7 @@ export function Pipeline({ query }: { query: URLSearchParams }) {
       ) : board ? (
         <Board deals={visible} />
       ) : (
-        <DealTable deals={visible} sort={sort} setSort={setSort} limit={limit} setLimit={setLimit} />
+        <DealTable deals={visible} sort={sort} setSort={setSort} limit={limit} setLimit={setLimit} bulkDecide={fila === "decidir"} />
       )}
     </div>
   );
@@ -103,20 +103,58 @@ function DealTable(props: {
   setSort: (s: { key: SortKey; dir: 1 | -1 }) => void;
   limit: number;
   setLimit: (n: number) => void;
+  /** Decidir é a única fila onde nenhuma característica distingue um deal do outro
+      (ver Método/testes no README) — revisar 1.300 um a um não muda a decisão,
+      então aqui, e só aqui, dá pra decidir em lote. */
+  bulkDecide?: boolean;
 }) {
-  const { model } = useApp();
-  const { sort } = props;
+  const { model, decide } = useApp();
+  const { sort, bulkDecide } = props;
+  const [selected, setSelected] = useState<Set<string>>(new Set());
   const rows = [...props.deals].sort((a, b) => {
     const va = sortValue(a, sort.key), vb = sortValue(b, sort.key);
     return (va < vb ? -1 : va > vb ? 1 : b.ev_soon - a.ev_soon) * sort.dir;
   });
+  const visible = rows.slice(0, props.limit);
+  const allSelected = bulkDecide && visible.length > 0 && visible.every((d) => selected.has(d.id));
+  const toggleAll = () => setSelected(allSelected ? new Set() : new Set(visible.map((d) => d.id)));
+  const toggleOne = (id: string) =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  const applyBulk = (kind: DecisionKind) => {
+    selected.forEach((id) => decide(id, kind));
+    setSelected(new Set());
+  };
+
   return (
     <>
+      {bulkDecide && visible.length > 0 && (
+        <div className="bulk-bar">
+          {selected.size > 0 ? (
+            <>
+              <span>{plural(selected.size, "selecionado", "selecionados")}</span>
+              <button className="btn" onClick={() => applyBulk("requalificado")}>Requalifiquei</button>
+              <button className="btn btn-quiet" onClick={() => applyBulk("encerrado")}>Encerrar como perdido</button>
+              <button className="btn-link" onClick={() => setSelected(new Set())}>Limpar seleção</button>
+            </>
+          ) : (
+            <span className="muted">Marque os deals abaixo para requalificar ou encerrar vários de uma vez.</span>
+          )}
+        </div>
+      )}
       <div className="table-wrap">
         <table className="deals">
           <thead>
             <tr>
-              <th scope="col">Deal</th>
+              {bulkDecide && (
+                <th scope="col" className="cell-check">
+                  <input type="checkbox" checked={allSelected} onChange={toggleAll} aria-label="Selecionar todos os visíveis" />
+                </th>
+              )}
+              <th scope="col" className="cell-pin">Deal</th>
               {COLUMNS.map(([key, label]) => (
                 <th key={key} scope="col" aria-sort={sort.key === key ? (sort.dir === 1 ? "ascending" : "descending") : undefined}>
                   <button onClick={() => props.setSort({ key, dir: sort.key === key ? (-sort.dir as 1 | -1) : -1 })}>
@@ -128,9 +166,17 @@ function DealTable(props: {
             </tr>
           </thead>
           <tbody>
-            {rows.slice(0, props.limit).map((d) => (
-              <tr key={d.id} className={`row-${d.bucket}`}>
-                <td>
+            {visible.map((d) => (
+              <tr key={d.id} className={`row-${d.bucket}${selected.has(d.id) ? " row-selected" : ""}`}>
+                {bulkDecide && (
+                  <td className="cell-check">
+                    <input
+                      type="checkbox" checked={selected.has(d.id)} onChange={() => toggleOne(d.id)}
+                      aria-label={`Selecionar ${d.account ?? "deal sem conta"}, ${d.product}`}
+                    />
+                  </td>
+                )}
+                <td className="cell-pin">
                   <a href={link("deal", d.id)} className="cell-deal"><DealName deal={d} /></a>
                 </td>
                 <td><Score deal={d} /></td>

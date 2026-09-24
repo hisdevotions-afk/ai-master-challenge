@@ -39,9 +39,9 @@ export function Forecast({ query }: { query: URLSearchParams }) {
   return (
     <div>
       <header className="page-head">
-        <h1>Forecast honesto</h1>
+        <h1>Forecast</h1>
         <p className="lede">
-          O pipeline declarado soma <strong>{moneyShort(declared)}</strong>. Descontando a chance real de cada deal e tirando o que
+          O pipeline declarado soma <strong>{moneyShort(declared)}</strong>. Descontando a chance de cada deal e tirando o que
           está parado além de qualquer ciclo já fechado, o esperado dos deals em negociação é{" "}
           <strong>{moneyShort(realistic)}</strong>. {pct(zombie / declared)} do valor declarado está em deals que o histórico
           nunca viu fechar.
@@ -51,7 +51,7 @@ export function Forecast({ query }: { query: URLSearchParams }) {
       <dl className="facts facts-big">
         <div><dt>Pipeline declarado</dt><dd>{moneyShort(declared)}</dd><p>Soma do preço de lista de todos os deals abertos.</p></div>
         <div><dt>Esperado</dt><dd>{moneyShort(realistic)}</dd><p>Deals em negociação vezes a chance de ganhar pela idade. Zumbis valem zero; prospecção ({moneyShort(prospect)}) fica de fora por não ter histórico de conversão.</p></div>
-        <div><dt>Próximos 30 dias</dt><dd>{moneyShort(next30)}</dd><p>Receita que o histórico espera ver entrar no mês.</p></div>
+        <div><dt>Próximos 30 dias</dt><dd>{moneyShort(next30)}</dd><p>Soma de valor × chance de fechar em 30 dias.</p></div>
       </dl>
 
       {stalled.length > 0 && (

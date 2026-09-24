@@ -11,7 +11,6 @@ import { DealPage } from "./pages/DealPage";
 import { Forecast } from "./pages/Forecast";
 import { AccountPage, Accounts } from "./pages/Accounts";
 import { Team } from "./pages/Team";
-import { Method } from "./pages/Method";
 import logoMark from "./assets/logo-mark.png";
 import "./styles.css";
 
@@ -21,7 +20,6 @@ const NAV: [string, string][] = [
   ["forecast", "Forecast"],
   ["contas", "Contas"],
   ["time", "Time"],
-  ["metodo", "Método"], // "Como o score funciona" era o único rótulo de 4 palavras entre vizinhos de 1-2; o título da própria página continua completo
 ];
 
 /** Um traço, um peso: mesmo sistema de ícone das razões do score, agora para a navegação. */
@@ -35,7 +33,7 @@ function NavIcon({ slug }: { slug: string }) {
   return <svg viewBox="0 0 18 18" aria-hidden="true"><circle cx="9" cy="9" r="7" {...s} /><line x1="9" y1="8.3" x2="9" y2="13" {...s} /><circle cx="9" cy="5.3" r="0.9" fill="currentColor" stroke="none" /></svg>;
 }
 
-/** CSV do recorte atual (região/manager/vendedor): a ação que um SaaS de vendas de verdade oferece. */
+/** CSV do recorte atual (região/manager/vendedor). */
 function csvEscape(v: string): string {
   return /[;"\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
 }
@@ -234,7 +232,6 @@ function Shell() {
           {page === "forecast" && <Forecast query={query} />}
           {page === "contas" && (arg ? <AccountPage name={arg} /> : <Accounts />)}
           {page === "time" && <Team />}
-          {page === "metodo" && <Method />}
           {!NAV.some(([slug]) => slug === page) && page !== "deal" && (
             <p className="empty">Essa página não existe. <a href="#/">Voltar para Meu dia</a></p>
           )}

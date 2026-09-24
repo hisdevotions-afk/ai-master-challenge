@@ -1,12 +1,11 @@
 import { inScope, useApp, useScopedOpen } from "../data";
-import { int, pct, pValue } from "../format";
+import { int, pct } from "../format";
 import type { Agent } from "../types";
 
 export function Team() {
   const { model, filters } = useApp();
   const open = useScopedOpen();
   const agents = model.agents.filter((a) => inScope(a, a.name, filters)).sort((a, b) => a.name.localeCompare(b.name));
-  const test = model.significance.find((t) => t.feature === "Vendedor");
   const count = (name: string, pred: (d: (typeof open)[number]) => boolean) =>
     open.filter((d) => d.agent === name && pred(d)).length;
 
@@ -15,9 +14,8 @@ export function Team() {
       <header className="page-head">
         <h1>Time</h1>
         <p className="lede">
-          Com os dados de hoje, nenhum vendedor ganha mais ou menos que a média de um jeito que o acaso não explique
-          {test && ` (teste do time todo: p = ${pValue(test.p_value)})`}. Por isso esta tela não é um ranking: ela mostra o
-          que cada pessoa pode arrumar no próprio pipeline.
+          Com os dados de hoje, nenhum vendedor ganha mais ou menos que a média de um jeito que valha ranquear. Por isso esta
+          tela não é um ranking: ela mostra o que cada pessoa pode arrumar no próprio pipeline.
         </p>
       </header>
       <div className="table-wrap">
@@ -50,8 +48,8 @@ export function Team() {
         </table>
       </div>
       <p className="queue-note">
-        A faixa plausível é o intervalo de confiança de 95% corrigido para 35 comparações (Bonferroni). Uma taxa só seria
-        diferente da média se a faixa inteira ficasse de um lado da linha.
+        A faixa plausível mostra onde a taxa de ganho de cada um pode realmente estar, não só o que já aconteceu. Poucos deals
+        fechados alargam a faixa — é por isso que ninguém aqui está marcado como acima ou abaixo do time.
       </p>
     </div>
   );

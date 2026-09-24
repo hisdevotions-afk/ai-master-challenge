@@ -123,11 +123,21 @@ function ReasonIcon({ kind }: { kind: Reason["kind"] }) {
   return <svg viewBox="0 0 14 14" width="14" height="14" aria-hidden="true"><circle cx="7" cy="7" r="5.2" {...stroke} /><line x1="7" y1="6.3" x2="7" y2="9.8" {...stroke} /><circle cx="7" cy="4.1" r="0.9" fill="currentColor" stroke="none" /></svg>;
 }
 
+const reasonClass = (kind: Reason["kind"]) => (kind === "+" ? "up" : kind === "-" ? "down" : kind === "!" ? "warn" : "info");
+
+/** O motivo que mais pesa na decisão: o primeiro sinal (+/-) da lista, pulando
+    os informativos ("i"/"!"). A ordem já vem do motor — idade primeiro,
+    depois comparações — então é sempre o mesmo motivo que justifica o score. */
+function topReason(reasons: Reason[]): Reason {
+  return reasons.find((r) => r.kind === "+" || r.kind === "-") ?? reasons[0];
+}
+
 export function ReasonList({ reasons }: { reasons: Reason[] }) {
+  const top = topReason(reasons);
   return (
     <ul className="reasons">
       {reasons.map((r) => (
-        <li key={r.text} className={`reason reason-${r.kind === "+" ? "up" : r.kind === "-" ? "down" : r.kind === "!" ? "warn" : "info"}`}>
+        <li key={r.text} className={`reason reason-${reasonClass(r.kind)}${r === top ? " reason-primary" : ""}`}>
           <span className="reason-icon"><ReasonIcon kind={r.kind} /></span>
           {r.text}
         </li>
@@ -154,9 +164,12 @@ export function DecisionButtons({ deal }: { deal: OpenDeal }) {
   );
 }
 
-/** Linha compacta de deal usada em Meu Dia, Conta e Quadro. */
-export function DealRow({ deal, detail, children }: { deal: OpenDeal; detail?: ReactNode; children?: ReactNode }) {
+/** Linha compacta de deal usada em Meu Dia e Contas: o motivo que mais pesa
+    vai junto do dado, não só na ficha do deal — decidir não deveria exigir
+    abrir outra tela. */
+export function DealRow({ deal }: { deal: OpenDeal }) {
   const { model } = useApp();
+  const top = topReason(deal.reasons);
   return (
     <li className="deal-row">
       <Score deal={deal} />
@@ -165,9 +178,11 @@ export function DealRow({ deal, detail, children }: { deal: OpenDeal; detail?: R
         <div className="deal-row-sub">
           <span>{money(deal.price)}</span>
           <span>{deal.agent}</span>
-          {detail && <span>{detail}</span>}
         </div>
-        {children}
+        <p className={`reason reason-compact reason-${reasonClass(top.kind)}`} title={top.text}>
+          <span className="reason-icon"><ReasonIcon kind={top.kind} /></span>
+          <span className="reason-text">{top.text}</span>
+        </p>
       </div>
       <AgeRuler age={deal.age} meta={model.meta} />
     </li>
