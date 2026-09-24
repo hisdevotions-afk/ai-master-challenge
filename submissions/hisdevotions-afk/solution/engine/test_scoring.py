@@ -80,6 +80,8 @@ def test_real_data_end_to_end():
     open_deals = [d for d in data["deals"] if d["stage"] in s.OPEN_STAGES]
     assert len(open_deals) == 2089
     assert all(0 <= d["score"] <= 100 and d["reasons"] for d in open_deals)
+    live = [d["score"] for d in open_deals if d["bucket"] != "decidir"]
+    assert min(live) == 0 and max(live) == 100, "escala precisa usar 0–100 entre deals vivos"
     assert sum(d["bucket"] == "decidir" for d in open_deals) == 1301  # idade >= 138: aberto aos 138 só fecharia depois, e isso nunca aconteceu
     used = {t["feature"] for t in data["significance"] if t["used"]}
     assert used == {"Idade do deal (fechou em até 15 dias ou não)"}

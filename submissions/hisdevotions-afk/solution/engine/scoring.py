@@ -174,10 +174,12 @@ def score_open(deal: dict, curve: AgeCurve, ref: date) -> dict:
 
 
 def add_scores(open_deals: list[dict]) -> None:
-    """Score 0–100 = percentil da receita esperada nos próximos 30 dias entre os deals abertos."""
-    ranked = sorted(d["ev_soon"] for d in open_deals)
+    """Score 0–100 = percentil da receita esperada nos próximos 30 dias entre os deals VIVOS.
+    Zumbis ficam em 0 e fora do ranking: incluídos, os ~60% empatados em zero
+    empurravam todo deal vivo para 62–100 e a escala deixava de diferenciar."""
+    live = sorted(d["ev_soon"] for d in open_deals if d["bucket"] != "decidir")
     for d in open_deals:
-        d["score"] = round(100 * bisect_left(ranked, d["ev_soon"]) / len(ranked))
+        d["score"] = 0 if d["bucket"] == "decidir" else round(100 * bisect_left(live, d["ev_soon"]) / max(len(live) - 1, 1))
 
 
 # ─── honestidade estatística ────────────────────────────────────────────────
