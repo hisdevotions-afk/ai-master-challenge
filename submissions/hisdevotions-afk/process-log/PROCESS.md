@@ -69,3 +69,22 @@ Testei cada feature categórica contra simulação de acaso puro (2.000 sorteios
 1. **Bug de mutação** — a IA serializou datas para texto no mesmo objeto antes do teste de significância usá-las. O teste ponta-a-ponta pegou (`TypeError`). Corrigido serializando só no final.
 2. **Número frouxo da exploração** — a EDA contou zumbis como idade > 138 (1.291). O motor usa ≥ 138 (1.301): um deal ainda aberto aos 138 dias só fecharia com mais de 138, o que nunca aconteceu. O teste foi atualizado com o número correto e a justificativa.
 3. **Comparações múltiplas (o mais importante)** — a primeira versão rotulou 2 vendedores como "acima/abaixo da média" com IC de 95%. Revisando a saída: comparando 35 pessoas a 95%, 1–2 falsos positivos são esperados por acaso, e o teste global de vendedor já dava p≈0,3. Rotular essas pessoas seria o ranking injusto que prometemos evitar. **Correção:** intervalo com correção de Bonferroni; teste garante que nenhum vendedor recebe rótulo enquanto o teste global não mostrar sinal.
+
+## 5. Frontend (`solution/app/`)
+
+- [IA] Carregou a skill de design e fez um plano antes de codar: o único sinal real é o **tempo**, então o elemento visual que se repete no app todo é a **régua de idade** (cedo · janela · além do histórico). Cor = fila de ação; zumbi em lilás apagado ("adormecido"), não vermelho de alarme. Evitou de propósito os clichês de página gerada por IA (fundo creme + terracota, eyebrow em caixa alta, "01/02/03").
+- React + TypeScript (Vite), zero dependência além de React. Rotas em hash (funcionam no GitHub Pages sem config). Decisões do vendedor em `localStorage`.
+- 7 telas: Meu dia · Pipeline (lista ordenável + quadro) · Ficha do deal · Forecast honesto · Contas/Conta 360 · Time · Como o score funciona. Filtros região → manager → vendedor em todas.
+
+### Verificação visual (screenshots em `process-log/screenshots/`)
+A extensão do Chrome travou na captura 3 vezes; em vez de insistir, a IA trocou para Chrome headless por linha de comando — que também gerou as imagens deste log.
+
+### O que a revisão das telas pegou (e foi corrigido)
+1. **Score comprimido (bug de lógica, não de visual).** Top 6 todos com 100. Causa: os 1.301 zumbis empatados em 0 ocupavam 62% do ranking, então todo deal vivo caía entre 62 e 100. Correção: percentil só entre deals vivos; teste novo garante que a escala usa 0–100.
+2. **Forecast inflado pela prospecção.** A primeira versão contava deals em Prospecting a 63% de chance — taxa que vem de deals que *já engajaram*. Não há dado de quantos prospects engajam. Correção: prospecção sai do "esperado" e aparece separada. O esperado caiu de US$ 1,2 mi para US$ 472 mil — a diferença era número inventado.
+3. **Achado novo, só visível no forecast por região:** os 500 deals em prospecção são **todos da Central**, e **todos os 408 Engaging da Central já passaram de 138 dias**. A Central não tem nenhum deal vivo em negociação — topo parado, meio morto. O app agora mostra um alerta quando um grupo está nessa situação, e o "Meu dia" muda a mensagem: a semana não é de fechar, é de destravar o funil.
+4. Curva despencava no fim (ruído com n < 30 deals) → não desenha abaixo de 30.
+5. Régua quase invisível no modo escuro; colunas numéricas alinhadas à esquerda (conflito de especificidade CSS); "1 que você já decidiu ficam" (concordância + contagem ignorando o filtro); "0 deals… Comece por eles"; p-valor com ponto em vez de vírgula.
+
+### Teste funcional no navegador real
+Decisão "Encerrar" persiste e tira o zumbi da fila · filtro Região=West + Vendedor=Hayden vira "Bom dia, Hayden." com 5 deals na janela · busca e contagem de decididos respeitam o recorte.
