@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
-import { BUCKETS, DealName, DealRow, DecisionButtons, Empty } from "../components";
-import { PRIORITY, useApp, useScopedOpen } from "../data";
+import { BUCKETS, DealName, DealRow, DecisionButtons, Empty, Score } from "../components";
+import { nextBestAction, peakAge, PRIORITY, useApp, useScopedOpen } from "../data";
 import { int, longDate, money, moneyShort, pct, plural, sum } from "../format";
 import { link } from "../router";
 import type { Bucket, OpenDeal } from "../types";
@@ -56,6 +56,22 @@ export function MyDay() {
   const expected30 = sum(open, (d) => d.ev_soon);
   const monday = new Date(model.meta.reference_date + "T00:00:00Z");
   monday.setUTCDate(monday.getUTCDate() + 1);
+
+  // Item 1 — a ação do momento: o deal de maior receita esperada em 30 dias na
+  // fila Fechar. Não é um score novo — é escolher o topo de um ranking que o
+  // motor já ordena, e dar a ele o gesto de "foque AGORA".
+  const now = nextBestAction(open);
+  // Item 4 — o "pico" da curva, para destacar o(s) deal(s) mais quente(s) da fila
+  // de fechamento (mais próxima da idade de máxima chance de ganhar em 30 dias).
+  const peak = peakAge(model);
+  const peakGap = (d: OpenDeal) => (d.age == null ? Infinity : Math.abs(d.age - peak));
+  // Item 2 — agregado da fila Decidir: quantos sugerem encerrar vs. confirmar.
+  const encerrar = decidir.filter((d) => d.suggested_action === "encerrar").length;
+  const confirmar = decidir.filter((d) => d.suggested_action === "confirmar").length;
+  // Item 3 — sinal de funil travado: há prospecção pra engajar, mas nenhum deal
+  // novo em negociação pra avançar (o "gargalo do funil" que o Forecast já
+  // detecta). Só aparece quando o recorte realmente tem esse desequilíbrio.
+  const prospectHeavy = prospectar.length > 0 && avancar.length === 0;
 
   const who = filters.agent
     ? `Bom dia, ${filters.agent.split(" ")[0]}.`
@@ -123,11 +139,56 @@ export function MyDay() {
         />
       </div>
 
+      <section className="health-strip" aria-label="Saúde do funil no recorte">
+        <div className="health-item">
+          <span className="health-dot" />
+          <p>
+            <strong>{plural(decidir.length, "deal parado além de qualquer ciclo", "deals parados além de qualquer ciclo")}</strong>{" "}
+            ({pct(open.length > 0 ? decidir.length / open.length : 0)} do aberto). Decisão, não follow-up.
+          </p>
+        </div>
+        {prospectHeavy && (
+          <div className="health-item health-item-warn">
+            <span className="health-dot" />
+            <p>
+              <strong>{int(prospectar.length)} deals em prospecção e nenhum em negociação nova.</strong>{" "}
+              O gargalo aqui é engajar, não fechar.
+            </p>
+          </div>
+        )}
+        {noAccount > 0 && (
+          <div className="health-item health-item-warn">
+            <span className="health-dot" />
+            <p>
+              <strong>{plural(noAccount, "deal aberto sem conta vinculada", "deals abertos sem conta vinculada")}.</strong>{" "}
+              Sem conta não há histórico do cliente.
+            </p>
+          </div>
+        )}
+      </section>
+
+      {now && (
+        <aside className="razor" aria-label="Ação do momento">
+          <div className="razor-head">
+            <span className="razor-kicker">Ação do momento</span>
+            <a className="razor-open" href={link("deal", now.id)}>Abrir ficha</a>
+          </div>
+          <div className="razor-body">
+            <div className="razor-score"><Score deal={now} /></div>
+            <div className="razor-main">
+              <a className="deal-row-title" href={link("deal", now.id)}><DealName deal={now} /></a>
+              <p className="razor-action">{now.action}</p>
+              <p className="razor-meta">{moneyShort(now.ev_soon)} em 30 dias · score {now.score} · {now.age} dias em negociação</p>
+            </div>
+          </div>
+        </aside>
+      )}
+
       <section className="queue queue-fechar">
         <QueueHead bucket="fechar" title="Feche esta semana" count={fechar.length} />
         <ol className="deal-list">
           {fechar.slice(0, 6).map((d) => (
-            <DealRow key={d.id} deal={d} />
+            <DealRow key={d.id} deal={d} hot={d === now} peakGap={peakGap(d)} />
           ))}
         </ol>
         {fechar.length === 0 && (
@@ -145,6 +206,15 @@ export function MyDay() {
           Nenhum deal da base fechou depois de {model.meta.max_cycle} dias. Confirme com o cliente: se ainda existe decisão,
           requalifique; se não, encerre e tire do forecast.
         </p>
+        <div className="decide-split" aria-label="Resumo da fila Decidir">
+          <span className="decide-split-encerrar">
+            <strong>{int(encerrar)}</strong> para encerrar
+          </span>
+          <span className="decide-split-confirmar">
+            <strong>{int(confirmar)}</strong> para confirmar antes
+          </span>
+          <a className="queue-all" href={`${link("pipeline")}?fila=decidir`}>Ver todos</a>
+        </div>
         <ol className="deal-list">
           {decidir.slice(0, 4).map((d) => (
             <StalledRow key={d.id} deal={d} />

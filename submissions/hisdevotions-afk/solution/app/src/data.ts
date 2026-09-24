@@ -90,6 +90,28 @@ export function useScopedOpen(): OpenDeal[] {
   return model.open.filter((d) => dealInScope(d, filters) && !decisions[d.id]);
 }
 
+/** Idade onde a chance de ganhar em 30 dias é máxima (o "pico" da curva).
+    Vem dos dados reais (meta.peaks de win_soon), não é uma constante:
+    o deal que está nesse ponto é o "mais quente" da fila Fechar, o que
+    merece o gesto de "foque agora". Fallback seguro se a curva vier vazia. */
+export function peakAge(model: Model): number {
+  let best: { age: number; win_soon: number } | null = null;
+  for (const p of model.curve) if (p.win_soon != null && (best == null || p.win_soon > best.win_soon)) best = { age: p.age, win_soon: p.win_soon };
+  return best?.age ?? model.meta.window_start;
+}
+
+/** Distância do deal ao pico da fila Fechar: 0 = exatamente no ponto de
+    máxima chance de ganhar em 30 dias. Quanto menor, mais "quente". */
+export const peakGap = (d: OpenDeal, peak: number) => (d.age == null ? Infinity : Math.abs(d.age - peak));
+
+/** Ação do momento (item 1): o deal com maior receita esperada em 30 dias na
+    fila Fechar — o "o que eu faço AGORA" do Meu Dia. Só quando há algo na
+    janela; senão o motor recomenda destravar o funil. */
+export function nextBestAction(open: OpenDeal[]): OpenDeal | null {
+  const fechar = open.filter((d) => d.bucket === "fechar").sort(PRIORITY.fechar);
+  return fechar[0] ?? null;
+}
+
 // ─── ordem de prioridade dentro de cada fila (usada em Meu Dia e no Pipeline) ─
 // Não é o score (chance): fechar/avançar priorizam receita esperada; decidir
 // prioriza o que mais infla o forecast declarado; prospecção não tem score

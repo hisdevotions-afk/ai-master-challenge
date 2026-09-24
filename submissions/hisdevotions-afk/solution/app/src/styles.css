@@ -277,11 +277,11 @@ main {
   max-width: 1440px; width: 100%; margin-inline: auto;
   display: flex; flex-wrap: wrap; align-items: end; gap: 0.75rem 1.5rem;
   padding: 0.85rem 2.5rem;
-  /* papel quase sólido: a faixa adere à estampa editorial e não ao "vitral"
-     genérico do glassmorphism — o backdrop desfoca só o essencial p/ manter
-     leitura dos controles acima do conteúdo que passa por baixo. */
-  background: color-mix(in srgb, var(--paper) 96%, transparent);
-  backdrop-filter: blur(6px);
+  /* papel SÓLIDO: a faixa é uma superfície editorial opaca, não um vidro que
+     deixa o conteúdo vazar por trás. A hierarquia vem da borda + sombra, não
+     de translucidez — consistente com todas as outras superfícies do app. */
+  background: var(--paper);
+  box-shadow: 0 1px 0 var(--line), 0 6px 16px -12px rgba(6, 12, 21, 0.35);
   border-bottom: 1px solid var(--line);
 }
 .filter-field { display: grid; gap: 3px; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
@@ -434,6 +434,74 @@ ul.plain li::before { content: ""; position: absolute; left: 0; top: 0.62em; wid
 }
 .hygiene p { max-width: 70ch; line-height: 1.55; }
 .hygiene strong { color: var(--warn); }
+
+/* ─── saúde do funil (Meu Dia, item 3) ────────────────────────────────────── */
+/* Três leituras rápidas de "o que trava a semana", sem virar ranking nem painel
+   novo — uma fita discreta que responde "por onde começo" numa olhada. */
+.health-strip {
+  margin-top: 1.25rem; padding: 0.85rem 1.25rem; border-radius: var(--radius-m);
+  background: var(--surface); border: 1px solid var(--line);
+  display: grid; gap: 0.5rem;
+}
+.health-item { display: flex; gap: 0.65rem; align-items: baseline; line-height: 1.5; font-size: 0.875rem; color: var(--muted); }
+.health-item strong { color: var(--ink); font-weight: 700; }
+.health-dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--fechar); transform: translateY(-2px); }
+.health-item-warn .health-dot { background: var(--warn); }
+.health-item-warn strong { color: var(--warn); }
+
+/* ─── ação do momento (Meu Dia, item 1) ───────────────────────────────────── */
+/* O "o que eu faço AGORA" da segunda de manhã: um deal só, o de maior receita
+   esperada em 30 dias na fila Fechar, com o motivo e o caminho pra ficha.
+   Não é um painel novo — é dar destaque de primeira página ao topo de um
+   ranking que o motor já ordena. */
+.razor {
+  margin-top: 1.5rem; padding: 0;
+  background: color-mix(in srgb, var(--fechar) 8%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--fechar) 40%, var(--line));
+  border-radius: var(--radius-m); overflow: hidden;
+}
+.razor-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 0.75rem;
+  padding: 0.55rem 1.25rem;
+  background: color-mix(in srgb, var(--fechar) 14%, var(--surface));
+  border-bottom: 1px solid color-mix(in srgb, var(--fechar) 35%, var(--line));
+}
+.razor-kicker { font-size: 0.75rem; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase; color: var(--fechar); }
+.razor-open { font-weight: 700; font-size: 0.8125rem; color: var(--fechar); text-decoration: none; }
+.razor-open:hover { text-decoration: underline; }
+.razor-body { display: flex; align-items: center; gap: 1rem; padding: 1.1rem 1.25rem; }
+.razor-score { flex: none; }
+.razor-main { min-width: 0; display: grid; gap: 0.35rem; }
+.razor-action { margin: 0; font-family: "Libre Caslon Text", Georgia, serif; font-size: 1.0625rem; line-height: 1.45; color: var(--ink); }
+.razor-meta { margin: 0; font-size: 0.8125rem; color: var(--muted); font-weight: 600; }
+
+/* ─── resumo da fila Decidir (Meu Dia, item 2) ────────────────────────────── */
+/* Uma fila de 1.300 itens é esmagadora; o agregado encerrar/confirmar a divide
+   numa decisão de gestão de dois números, sem esconder o detalhe (cada deal
+   continua um clique). */
+.decide-split {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem 1.5rem;
+  margin-bottom: 0.85rem; padding: 0.55rem 0.9rem; border-radius: var(--radius-s);
+  background: var(--surface); border: 1px solid var(--line);
+  font-size: 0.875rem; color: var(--muted);
+}
+.decide-split strong { font-weight: 800; font-size: 1rem; }
+.decide-split-encerrar strong { color: var(--decidir); }
+.decide-split-confirmar strong { color: var(--muted); }
+.decide-split .queue-all { margin-left: auto; }
+
+/* ─── destaque de "mais quente" na fila Fechar (item 4) ───────────────────── */
+/* Dentro da MESMA fila, o deal mais próximo do pico da curva merece um leve
+   selo — cor continua sendo fila de ação, não decoração: o ouro/fechar só
+   sublinha urgência relativa num grupo que a ordenação sozinha não conta. */
+.deal-row.hot { background: color-mix(in srgb, var(--fechar) 6%, var(--surface)); box-shadow: inset 3px 0 0 var(--fechar); }
+.deal-row.hot:hover { background: color-mix(in srgb, var(--fechar) 10%, var(--surface)); }
+.deal-row.peaked .ruler-mark { box-shadow: 0 0 0 2px color-mix(in srgb, var(--fechar) 45%, var(--surface)); }
+.peak-badge {
+  font-size: 0.6875rem; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase;
+  color: var(--fechar); background: color-mix(in srgb, var(--fechar) 12%, var(--surface));
+  padding: 0.1rem 0.45rem; border-radius: 999px;
+}
 
 /* ─── score e tags ───────────────────────────────────────────────────────── */
 
@@ -752,6 +820,10 @@ table.deals { width: 100%; border-collapse: collapse; }
   select { display: block; }
   main { padding: 1.5rem 1.1rem 3.5rem; }
   .lede { font-size: 1.1rem; }
+  .razor-body { gap: 0.75rem; padding: 0.9rem 1rem; }
+  .razor-kicker, .razor-open { letter-spacing: 0.03em; }
+  .decide-split { align-items: flex-start; }
+  .decide-split .queue-all { margin-left: 0; }
   .stat-row { grid-template-columns: 1fr; gap: 0.75rem; margin-bottom: 2rem; }
   .queue-pair { grid-template-columns: 1fr; gap: 1rem; }
   .deal-row { grid-template-columns: 2.9rem minmax(0, 1fr); }
