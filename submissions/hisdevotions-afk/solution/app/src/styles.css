@@ -128,7 +128,9 @@ p { margin: 0; }
 }
 .topbar-search {
   position: relative;
-  flex: 1 1 22rem; max-width: 40rem; margin-left: 1.25rem;
+  /* centrado no vão entre a identidade (esq.) e as ações (dir.): a barra lê
+     equilibrada, não amontoada à esquerda; margin-inline:auto distriui o espaço */
+  flex: 0 1 42rem; min-width: 12rem; margin-inline: auto;
   display: flex; align-items: center; gap: 0.55rem;
   background: color-mix(in srgb, white 10%, var(--navy));
   border: 1px solid color-mix(in srgb, white 14%, transparent);
@@ -260,15 +262,26 @@ button.nav-operator:hover { background: color-mix(in srgb, white 8%, transparent
 .nav-backup-error { margin: 0; font-size: 0.75rem; color: var(--decidir-on-navy); }
 
 .main { grid-area: main; min-width: 0; }
-main { max-width: 1440px; padding: 2rem 2.5rem 5rem; animation: rise 0.5s var(--ease) both; }
+/* o frame editorial: a coluna do conteúdo e a faixa de filtros compartilham o
+   mesmo compasso centralizado (broadSheet) — em tela larga, papel dos dois lados,
+   em vez de ler tudo grudado na esquerda. */
+main {
+  max-width: 1440px; width: 100%; margin-inline: auto;
+  padding: 2rem 2.5rem 5rem;
+  animation: rise 0.5s var(--ease) both;
+}
 @keyframes rise { from { opacity: 0.4; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 
 .filters {
   position: sticky; top: 60px; z-index: 3;
+  max-width: 1440px; width: 100%; margin-inline: auto;
   display: flex; flex-wrap: wrap; align-items: end; gap: 0.75rem 1.5rem;
   padding: 0.85rem 2.5rem;
-  background: color-mix(in srgb, var(--paper) 88%, transparent);
-  backdrop-filter: blur(10px) saturate(1.1);
+  /* papel quase sólido: a faixa adere à estampa editorial e não ao "vitral"
+     genérico do glassmorphism — o backdrop desfoca só o essencial p/ manter
+     leitura dos controles acima do conteúdo que passa por baixo. */
+  background: color-mix(in srgb, var(--paper) 96%, transparent);
+  backdrop-filter: blur(6px);
   border-bottom: 1px solid var(--line);
 }
 .filter-field { display: grid; gap: 3px; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
@@ -474,6 +487,11 @@ ul.plain li::before { content: ""; position: absolute; left: 0; top: 0.62em; wid
 .tabs a[aria-current="page"] { background: var(--navy); color: #f6f1e6; }
 .tabs a[aria-current="page"] .count { color: color-mix(in srgb, #f6f1e6 70%, transparent); }
 .count { font-weight: 600; color: var(--muted); }
+/* higiene: a aba de encerrados recentes é um gesto de revisão, não uma fila de
+   ação — tom separado das filas (que têm cor própria por bucket) */
+.tabs a.tab-encerrados { color: var(--warn); }
+.tabs a.tab-encerrados[aria-current="page"] { background: var(--navy); color: #f6f1e6; }
+.tabs a.tab-encerrados[aria-current="page"] .count { color: color-mix(in srgb, #f6f1e6 70%, transparent); }
 
 .table-wrap { overflow-x: auto; background: var(--surface); border-radius: var(--radius-m); box-shadow: var(--shadow-sm); border: 1px solid var(--line); }
 table.deals { width: 100%; border-collapse: collapse; }
@@ -523,12 +541,33 @@ table.deals { width: 100%; border-collapse: collapse; }
 }
 /* confirmação some assim que aplicada; isto fica até a próxima ação em lote ou até desfazer — mesmo padrão do Desfazer por deal, sem timer */
 .bulk-undo {
-  display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap;
+  display: flex; flex-direction: column; gap: 0.3rem;
   padding: 0.6rem 1rem; margin-bottom: 0.75rem; border-radius: var(--radius-m);
   background: var(--avancar-soft); color: var(--avancar); border: 1px solid color-mix(in srgb, var(--avancar) 30%, transparent);
   font-size: 0.875rem; font-weight: 600;
 }
+.bulk-undo-bar { display: flex; align-items: center; gap: 0.85rem; flex-wrap: wrap; }
 .bulk-undo .btn-link { color: var(--avancar); text-decoration: underline; }
+.bulk-undo-panel {
+  display: grid; gap: 0.7rem; margin-top: 0.2rem; padding: 0.7rem 0.85rem;
+  border: 1px solid color-mix(in srgb, var(--avancar) 28%, transparent); border-radius: var(--radius-s);
+  background: color-mix(in srgb, var(--avancar) 6%, transparent);
+}
+.bulk-undo-names { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
+.bulk-undo-names input {
+  flex: 1 1 18rem; font: inherit; font-size: 0.8125rem; padding: 0.35rem 0.6rem;
+  border: 1px solid var(--line-strong); border-radius: var(--radius-s); color: var(--ink); background: var(--surface);
+}
+.bulk-undo-names input:focus-visible { border-color: var(--focus); outline: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--focus) 18%, transparent); }
+.bulk-undo-list {
+  list-style: none; padding: 0; margin: 0; display: grid; gap: 0.15rem;
+  max-height: 15rem; overflow-y: auto;
+}
+.bulk-undo-list li { border-top: 1px solid color-mix(in srgb, var(--avancar) 12%, transparent); }
+.bulk-undo-list label { display: flex; align-items: center; gap: 0.55rem; padding: 0.3rem 0.2rem; cursor: pointer; }
+.bulk-undo-list input[type="checkbox"] { width: 1.05rem; height: 1.05rem; cursor: pointer; }
+.bulk-undo-list .deal-product { color: color-mix(in srgb, var(--avancar) 70%, var(--ink)); }
+.bulk-undo-actions { display: flex; align-items: center; gap: 0.7rem; flex-wrap: wrap; }
 .cell-deal { display: grid; text-decoration: none; font-weight: 700; min-width: 12rem; color: var(--ink); }
 .cell-deal:hover { color: var(--fechar); text-decoration: underline; }
 .cell-ruler { min-width: 150px; }
@@ -543,6 +582,11 @@ table.deals { width: 100%; border-collapse: collapse; }
 .row-fechar td:first-child, .row-decidir td:first-child, .row-avancar td:first-child, .row-prospectar td:first-child { box-shadow: inset 3px 0 0 var(--rc), 1px 0 0 var(--line); }
 .row-fechar { --rc: var(--fechar); } .row-decidir { --rc: var(--decidir); }
 .row-avancar { --rc: var(--avancar); } .row-prospectar { --rc: var(--prospectar); }
+/* aba de encerrados recentes: o deal encerrado não tem score/régua — a marca é a data da decisão */
+.row-encerrado td:first-child { box-shadow: inset 3px 0 0 var(--warn), 1px 0 0 var(--line); }
+.row-encerrado { color: var(--ink); }
+.cell-note { max-width: 30rem; color: var(--muted); }
+.cell-note span { display: block; word-break: break-word; }
 
 .board { display: grid; grid-template-columns: repeat(4, minmax(230px, 1fr)); gap: 1.15rem; overflow-x: auto; padding-bottom: 0.5rem; }
 .board-col { margin: 0; display: flex; flex-direction: column; gap: 0.6rem; padding-top: 0.85rem; border-top: 3px solid var(--c, var(--line)); }

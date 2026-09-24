@@ -164,3 +164,22 @@ Depois de dar bulk-decide na seção 11, numa sessão seguinte do Claude Code eu
 **12.4 Tooltip/hover nos gráficos (`components.tsx`, `pages/Forecast.tsx`, `pages/Team.tsx`, `styles.css`).** A curva e a barra empilhada eram SVG estático — decorativo, sem valor exato ao passar o mouse. Na **curva**, o hover agora converte a posição do mouse numa idade e mostra um tooltip ("42 dias · Ganhar: 33% · Fechar em 30d: 41%"), com o marcador mudando de cor no hover pra distinguir do marcador fixo do deal — virou ferramenta de consulta de qualquer idade, não foto de um ponto. Na **barra do Forecast**, cada segmento virou um link com `title`/`aria-label` (passar o mouse mostra "Fechar: US$ X em N deals") e ainda é clicável pro filtro `?fila=`. Bônus, o **tempo/médio do Time** ganhou tooltip com a faixa de confiança. Baixo esforço, mas é a diferença entre "gráfico decorativo" e "gráfico que você usa".
 
 **Registro de processo.** Esta sessão rodou perto do limite de requisições da ferramenta (rate limit) e a conversa completa não foi exportada antes disso — o chat fica marcado como pendente na seção de Evidências do README. As 4 mudanças estão todas no código-fonte confirmadas contra as funções auxiliares (`int`, `plural`, `moneyShort`, `sum`, `pct`) e os módulos importados (`BUCKETS`, `BUCKET_ORDER`), sem referência a símbolo que não exista. Não chegou a rodar o `npm run build` nesta leva (node indisponível no ambiente na hora da revisão); o `dist/` ainda é de antes destas mudanças e precisa de rebuild antes da entrega.
+
+## 13. Centralizar a topbar e os filtros no compasso editorial
+
+Numa nova passada de design (a framework **Impeccable**, com os playbooks de layout e de "craft-floor" — a camada que lista os vícios de IA a evitar), pedi para deixar o topo da tela e a faixa de filtros mais **alinhados ao centro**, em vez de tudo encostado na esquerda.
+
+**Por que estava torto:** `main` e `.filters` não tinham coluna compartilhada — cada um tratava o próprio eixo, e o `.topbar-search` empurrava pra esquerda com `margin-left`. O resultado era a identidade, a busca e as ações da topbar, e os campos de filtro, todos "grudados no canto", sem leitura equilibrada em tela larga.
+
+**O que mudei (`styles.css`):**
+- `main` e `.filters` passaram a compartilhar **`max-width: 1440px; width: 100%; margin-inline: auto`** — a coluna estreita-editorial centralizada ("broadsheet"). Filtros e conteúdo lêem no mesmo compasso; em tela larga sobra papel dos dois lados em vez de tudo na esquerda.
+- `.topbar-search` trocou `flex: 1 1 22rem; margin-left: 1.25rem` por `flex: 0 1 42rem; min-width: 12rem; margin-inline: auto` — a barra de busca fica centrada no vão entre a identidade (esq.) e as ações (dir.).
+- **Refinamento contra "AI-slop" de design:** a faixa de filtros era um vidro translúcido genérico (`blur(10px) saturate(1.05)`, glassmorphism padrão). Refinei para **papel quase sólido** (`96%` paper, `blur(6px)`, sem boost de saturação) com filete de 1px embaixo — adere à estampa editorial, não ao "vitral" de template.
+
+**[EU] verifiquei por geometria renderizada — não por screenshot, porque este modelo não lê imagem.** O runtime mediu as caixas (`getBoundingClientRect`) de `main`, `.filters`, `select`, `pageHead`, `toolbar`, `search`, `brand`, `actions` nas três vistas (`#/pipeline`, `#/`, `#/forecast`) e no mobile (390px):
+
+- **Desktop 1920px:** `main` e `.filters` ambos em l=357–1797 (w=1440) — perfeitamente alinhados; `pageHead`/`toolbar` e o primeiro `select` começam no mesmo recuo interno (l=397). A busca fica centrada no vão (cx≈805, entre a marca l=20 e as ações l=1563).
+- **Mobile 390px:** `main` e `.filters` full-width e alinhados; o `select` começa no padding correto (l=16); nada quebra com o novo `margin-inline: auto`.
+- **`detect.mjs --scope layout` da Impeccable voltou `[]`** (sem defeito) no CSS final.
+
+O `npm run build` passou limpo e o `dist/` foi reconstruído. As 4 mudanças de borda/portabilidade da seção 12 + esta 13 ficaram juntas num único commit local (nada enviado ao GitHub), para visualização no `http://127.0.0.1:8099`.
