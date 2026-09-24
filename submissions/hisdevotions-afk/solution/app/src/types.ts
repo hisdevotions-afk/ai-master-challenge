@@ -35,6 +35,9 @@ export interface OpenDeal extends Deal {
   score: number | null;
   reasons: Reason[];
   action: string;
+  /** Só preenchido na fila "decidir": sugestão de qual dos dois botões apertar
+      (não é previsão de resultado — zumbi ainda não tem outcome conhecido). */
+  suggested_action: "encerrar" | "confirmar" | null;
 }
 
 export interface Meta {

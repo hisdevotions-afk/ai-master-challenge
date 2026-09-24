@@ -156,10 +156,13 @@ export function DecisionButtons({ deal }: { deal: OpenDeal }) {
         <button className="btn-link" onClick={() => decide(deal.id, null)}>Desfazer</button>
       </div>
     );
+  // O botão sugerido (ver suggest_decide no motor) vem destacado; o outro
+  // continua um clique de distância, a decisão final é sempre do vendedor.
+  const closeSuggested = deal.suggested_action === "encerrar";
   return (
     <div className="decision">
-      <button className="btn" onClick={() => decide(deal.id, "requalificado")}>Requalifiquei</button>
-      <button className="btn btn-quiet" onClick={() => decide(deal.id, "encerrado")}>Encerrar como perdido</button>
+      <button className={closeSuggested ? "btn btn-quiet" : "btn"} onClick={() => decide(deal.id, "requalificado")}>Requalifiquei</button>
+      <button className={closeSuggested ? "btn" : "btn btn-quiet"} onClick={() => decide(deal.id, "encerrado")}>Encerrar como perdido</button>
     </div>
   );
 }

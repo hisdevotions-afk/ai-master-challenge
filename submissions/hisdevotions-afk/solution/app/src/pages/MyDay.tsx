@@ -32,7 +32,9 @@ function StalledRow({ deal }: { deal: OpenDeal }) {
         <a className="deal-row-title" href={link("deal", deal.id)}><DealName deal={deal} /></a>
         <div className="deal-row-sub">
           <span>{deal.agent}</span>
-          <span>parado além do histórico</span>
+          <span className={`suggestion suggestion-${deal.suggested_action}`}>
+            {deal.suggested_action === "encerrar" ? "Sugestão: encerrar" : "Sugestão: confirmar antes"}
+          </span>
         </div>
         <DecisionButtons deal={deal} />
       </div>
