@@ -61,7 +61,10 @@ export function AccountPage({ name }: { name: string }) {
   const account = model.accountByName.get(name);
   if (!account) return <Empty>Não encontrei a conta {name}. <a href={link("contas")}>Ver todas as contas</a></Empty>;
   const deals = model.deals.filter((d) => d.account === name);
-  const open = deals.filter(isOpen).filter((d) => !decisions[d.id]).sort((a, b) => b.score - a.score) as OpenDeal[];
+  // Lista mistura filas diferentes: ev_soon/ev são 0 para decidir/prospectar (sem
+  // score), então já caem para o fim sem precisar de um switch por bucket.
+  const open = deals.filter(isOpen).filter((d) => !decisions[d.id])
+    .sort((a, b) => b.ev_soon - a.ev_soon || b.ev - a.ev || b.price - a.price) as OpenDeal[];
   const closed = deals.filter((d) => !isOpen(d)).sort((a, b) => (b.close ?? "").localeCompare(a.close ?? "")) as Deal[];
   const won = closed.filter((d) => d.stage === "Won");
   const parent = account.subsidiary_of && model.accountByName.get(account.subsidiary_of);

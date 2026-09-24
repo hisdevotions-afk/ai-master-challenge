@@ -1,9 +1,10 @@
 import { Component, StrictMode, Suspense, use, useState, type FormEvent, type ReactNode } from "react";
 import { createRoot } from "react-dom/client";
 import { AppContext, NO_FILTERS, loadModel, store, useApp, useScopedOpen, type Decisions, type DecisionKind, type Filters } from "./data";
+import type { Agent } from "./types";
 import { link, useRoute } from "./router";
 import { int, longDate, money, pct } from "./format";
-import { BUCKETS } from "./components";
+import { BUCKETS, DealName, Score } from "./components";
 import { MyDay } from "./pages/MyDay";
 import { Pipeline } from "./pages/Pipeline";
 import { DealPage } from "./pages/DealPage";
@@ -99,11 +100,21 @@ function Topbar() {
   const scoped = useScopedOpen();
   const decidir = scoped.filter((d) => d.bucket === "decidir").length;
   const [q, setQ] = useState("");
+  const [resultsOpen, setResultsOpen] = useState(false);
 
-  const search = (e: FormEvent) => {
-    e.preventDefault();
-    if (q.trim()) window.location.hash = `${link("pipeline")}?busca=${encodeURIComponent(q.trim())}`;
+  const goToAll = (text: string) => {
+    window.location.hash = `${link("pipeline")}?busca=${encodeURIComponent(text)}`;
+    setResultsOpen(false);
   };
+  const submit = (e: FormEvent) => {
+    e.preventDefault();
+    if (q.trim()) goToAll(q.trim());
+  };
+
+  const needle = q.trim().toLowerCase();
+  const matches =
+    needle.length < 2 ? [] : scoped.filter((d) => [d.account, d.product, d.agent, d.id].some((v) => v?.toLowerCase().includes(needle)));
+  const showResults = resultsOpen && needle.length >= 2;
 
   return (
     <header className="topbar">
@@ -112,19 +123,54 @@ function Topbar() {
         <span className="brand-word">G4</span>
       </a>
       <span className="topbar-product">Pipeline em Foco</span>
-      <form className="topbar-search" onSubmit={search} role="search">
+      <form className="topbar-search" onSubmit={submit} role="search" autoComplete="off">
         <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" strokeWidth="1.8" /><line x1="15.3" y1="15.3" x2="21" y2="21" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /></svg>
-        <input type="search" placeholder="Buscar conta, produto ou vendedor" aria-label="Busca global" value={q} onChange={(e) => setQ(e.target.value)} />
+        <input
+          type="search" placeholder="Buscar conta, produto ou vendedor" aria-label="Busca global"
+          value={q}
+          onChange={(e) => { setQ(e.target.value); setResultsOpen(true); }}
+          onFocus={() => q.trim() && setResultsOpen(true)}
+          onBlur={() => setTimeout(() => setResultsOpen(false), 120)}
+          onKeyDown={(e) => e.key === "Escape" && setResultsOpen(false)}
+          role="combobox" aria-expanded={showResults} aria-controls="topbar-search-results" aria-autocomplete="list"
+        />
+        {showResults && (
+          <div className="topbar-search-results" id="topbar-search-results" role="listbox">
+            {matches.length === 0 ? (
+              <p className="topbar-search-empty">Nada encontrado para "{q.trim()}".</p>
+            ) : (
+              <>
+                <ul>
+                  {matches.slice(0, 6).map((d) => (
+                    <li key={d.id}>
+                      <a href={link("deal", d.id)} role="option" onMouseDown={() => setResultsOpen(false)}>
+                        <Score deal={d} />
+                        <span className="topbar-search-result-name"><DealName deal={d} /></span>
+                        <span className="topbar-search-result-agent">{d.agent}</span>
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+                {matches.length > 6 && (
+                  <button type="button" className="topbar-search-all" onMouseDown={() => goToAll(q.trim())}>
+                    Ver todos os {int(matches.length)} resultados
+                  </button>
+                )}
+              </>
+            )}
+          </div>
+        )}
       </form>
-      <a className="topbar-alert" href={`${link("pipeline")}?fila=decidir`} title={`${int(decidir)} deals aguardando decisão`}>
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 10a6 6 0 1 1 12 0c0 4 1.5 5.5 2 6H4c.5-.5 2-2 2-6Z" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" /><path d="M10 19a2 2 0 0 0 4 0" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" /></svg>
-        {decidir > 0 && <span className="topbar-alert-count">{decidir > 99 ? "99+" : int(decidir)}</span>}
-        <span className="sr-only">{int(decidir)} deals aguardando decisão</span>
-      </a>
-      <button className="topbar-export" onClick={() => exportPipelineCsv(scoped)} title="Exportar o recorte atual em CSV">
-        <svg viewBox="0 0 18 18" aria-hidden="true"><path d="M9 2.5v8.2M5.6 7.4 9 10.8l3.4-3.4" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /><path d="M2.5 13v1.8a1 1 0 0 0 1 1h11a1 1 0 0 0 1-1V13" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /></svg>
-        <span>Exportar</span>
-      </button>
+      <div className="topbar-actions">
+        <a className="topbar-queue-chip" href={`${link("pipeline")}?fila=decidir`} title="Deals sem histórico comparável de fechamento, aguardando uma decisão" aria-label={`${int(decidir)} deals aguardando decisão`}>
+          <svg viewBox="0 0 18 18" aria-hidden="true"><circle cx="9" cy="9" r="7" fill="none" stroke="currentColor" strokeWidth="1.6" /><path d="M9 5.2V9l3 2" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>
+          <span className="topbar-queue-chip-label" aria-hidden="true">{int(decidir)} aguardando decisão</span>
+        </a>
+        <button className="topbar-export" onClick={() => exportPipelineCsv(scoped)} title="Exportar o recorte atual em CSV">
+          <svg viewBox="0 0 18 18" aria-hidden="true"><path d="M9 2.5v8.2M5.6 7.4 9 10.8l3.4-3.4" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /><path d="M2.5 13v1.8a1 1 0 0 0 1 1h11a1 1 0 0 0 1-1V13" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /></svg>
+          <span>Exportar</span>
+        </button>
+      </div>
     </header>
   );
 }
@@ -174,40 +220,85 @@ function Shell() {
   );
 }
 
+/** Um select com rótulo, estado ativo visível e um "×" para limpar só esse campo. */
+function FilterField({
+  label, placeholder, value, onChange, onClear, children,
+}: {
+  label: string; placeholder: string; value: string;
+  onChange: (value: string) => void; onClear: () => void; children: ReactNode;
+}) {
+  return (
+    <label className={`filter-field${value ? " is-active" : ""}`}>
+      {label}
+      <span className="filter-control">
+        <select value={value} onChange={(e) => onChange(e.target.value)}>
+          <option value="">{placeholder}</option>
+          {children}
+        </select>
+        {value && (
+          <button type="button" className="filter-clear" onClick={onClear} title={`Limpar filtro de ${label.toLowerCase()}`}>
+            ×<span className="sr-only">Limpar filtro de {label.toLowerCase()}</span>
+          </button>
+        )}
+      </span>
+    </label>
+  );
+}
+
+/** Vendedores agrupados por manager (só quando o recorte ainda não escolheu um): 35 nomes soltos não se leem, 6 grupos sim. */
+function agentOptions(agents: Agent[], groupByManager: boolean) {
+  if (!groupByManager) return agents.map((a) => a.name).sort().map((n) => <option key={n}>{n}</option>);
+  const byManager = new Map<string, string[]>();
+  for (const a of agents) {
+    const list = byManager.get(a.manager);
+    if (list) list.push(a.name);
+    else byManager.set(a.manager, [a.name]);
+  }
+  return [...byManager.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([manager, names]) => (
+      <optgroup key={manager} label={manager}>
+        {names.sort().map((n) => <option key={n}>{n}</option>)}
+      </optgroup>
+    ));
+}
+
 function FilterBar() {
   const { model, filters, setFilters } = useApp();
   const regions = [...new Set(model.agents.map((a) => a.region))].sort();
-  const managers = [...new Set(model.agents.filter((a) => !filters.region || a.region === filters.region).map((a) => a.manager))].sort();
-  const agents = model.agents
-    .filter((a) => (!filters.region || a.region === filters.region) && (!filters.manager || a.manager === filters.manager))
-    .map((a) => a.name)
-    .sort();
-  const active = filters.region || filters.manager || filters.agent;
+  const inRegion = model.agents.filter((a) => !filters.region || a.region === filters.region);
+  const managers = [...new Set(inRegion.map((a) => a.manager))].sort();
+  const inManager = inRegion.filter((a) => !filters.manager || a.manager === filters.manager);
+  const activeCount = [filters.region, filters.manager, filters.agent].filter(Boolean).length;
+
   return (
     <div className="filters" role="search">
-      <label>
-        Região
-        <select value={filters.region} onChange={(e) => setFilters({ region: e.target.value, manager: "", agent: "" })}>
-          <option value="">Todas</option>
-          {regions.map((r) => <option key={r}>{r}</option>)}
-        </select>
-      </label>
-      <label>
-        Manager
-        <select value={filters.manager} onChange={(e) => setFilters({ ...filters, manager: e.target.value, agent: "" })}>
-          <option value="">Todos</option>
-          {managers.map((m) => <option key={m}>{m}</option>)}
-        </select>
-      </label>
-      <label>
-        Vendedor
-        <select value={filters.agent} onChange={(e) => setFilters({ ...filters, agent: e.target.value })}>
-          <option value="">Todos</option>
-          {agents.map((a) => <option key={a}>{a}</option>)}
-        </select>
-      </label>
-      {active && (
-        <button className="btn-link" onClick={() => setFilters(NO_FILTERS)}>Limpar filtros</button>
+      <FilterField
+        label="Região" placeholder="Todas" value={filters.region}
+        onChange={(v) => setFilters({ region: v, manager: "", agent: "" })}
+        onClear={() => setFilters({ region: "", manager: "", agent: "" })}
+      >
+        {regions.map((r) => <option key={r}>{r}</option>)}
+      </FilterField>
+      <FilterField
+        label="Manager" placeholder="Todos" value={filters.manager}
+        onChange={(v) => setFilters({ ...filters, manager: v, agent: "" })}
+        onClear={() => setFilters({ ...filters, manager: "", agent: "" })}
+      >
+        {managers.map((m) => <option key={m}>{m}</option>)}
+      </FilterField>
+      <FilterField
+        label="Vendedor" placeholder="Todos" value={filters.agent}
+        onChange={(v) => setFilters({ ...filters, agent: v })}
+        onClear={() => setFilters({ ...filters, agent: "" })}
+      >
+        {agentOptions(inManager, !filters.manager)}
+      </FilterField>
+      {activeCount > 0 && (
+        <div className="filters-summary">
+          <span className="filters-count">{activeCount} {activeCount === 1 ? "filtro ativo" : "filtros ativos"}</span>
+          <button className="btn-link" onClick={() => setFilters(NO_FILTERS)}>Limpar tudo</button>
+        </div>
       )}
     </div>
   );

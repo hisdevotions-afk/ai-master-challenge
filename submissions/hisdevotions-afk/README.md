@@ -61,26 +61,29 @@ python3 test_scoring.py               # testes do motor (ou: python3 -m pytest)
 python3 notify.py --agent "Hayden Neloms"                       # imprime a fila do vendedor no terminal
 python3 notify.py --agent "Hayden Neloms" --webhook $SLACK_URL  # manda pro Slack (incoming webhook)
 python3 notify.py --agent "Hayden Neloms" --to time@empresa.com # manda por email (precisa de SMTP_HOST no ambiente)
-python3 notify.py                                                # digest da empresa inteira
+python3 notify.py                                                # digest da empresa inteira, uma mensagem só
+
+python3 notify.py --all                                          # um digest por vendedor dos 35, impresso (sem destino)
+python3 notify.py --all --targets targets.json                   # ...mandado pro destino de cada um (ver targets.example.json)
 python3 test_notify.py                                           # testes do bot (ou: python3 -m pytest)
 ```
-Sem `--webhook`/`--to`, o bot só imprime — dá pra testar sem credencial nenhuma. Em produção, um cron diário rodaria `scoring.py` e depois `notify.py` para cada vendedor.
+Sem `--webhook`/`--to`, o bot só imprime — dá pra testar sem credencial nenhuma. `sales_teams.csv` não tem email nem Slack ID de ninguém, então não existe como descobrir o destino de cada vendedor a partir do dataset: `--targets targets.json` é o diretório vendedor→destino que a RevOps manteria (em produção viria do SSO/diretório da empresa). Sem esse arquivo, `--all` cai no mesmo modo seguro do modo single — imprime os 35, não envia nada; quem não estiver no arquivo também cai nesse modo (ou no `--webhook`/`--to` global, se algum foi passado). Em produção, um cron diário rodaria `scoring.py` e depois `notify.py --all --targets targets.json`.
 
 Saída real de `python3 notify.py --agent "Hayden Neloms"` (dados de 31/12/2017):
 ```
 Bom dia, Hayden.
 
 *Feche esta semana* (5)
-  - Konmatfix — GTX Plus Pro — US$ 4.085 em 30d: Priorize esta semana: o deal está na janela em que os deals fecham.
-  - Sem conta vinculada — MG Advanced — US$ 2.467 em 30d: Priorize esta semana: o deal está na janela em que os deals fecham.
+  - Konmatfix — GTX Plus Pro — US$ 721 em 30d: Priorize esta semana: o deal está na janela em que os deals fecham.
+  - Sem conta vinculada — MG Advanced — US$ 604 em 30d: Priorize esta semana: o deal está na janela em que os deals fecham.
   ...
 
 *Decida o destino* (44)
-  - Sem conta vinculada — GTX Plus Pro — US$ 0 em 30d: Requalifique ou encerre: confirme com o cliente se ainda existe decisão; se não, marque como perdido.
+  - Sem conta vinculada — GTX Plus Pro — US$ 5.482 parado: Requalifique ou encerre: confirme com o cliente se ainda existe decisão; se não, marque como perdido.
   ...
 
 *Mantenha em movimento* (1)
-  - Silis — MG Special — US$ 7 em 30d: Mantenha contato e avance: faltam ~47 dias para a janela de fechamento.
+  - Silis — MG Special — US$ 37 esperado: Mantenha contato e avance: faltam ~33 dias para a janela de fechamento.
 
 *Engaje* (0)
   (nenhum deal)
@@ -102,16 +105,17 @@ Bom dia, Hayden.
 | Região / Manager | 0,78 / 0,88 | Não |
 | Conta / Setor | 0,95 / 0,99 | Não |
 
-**2. O que a idade ensina** (aprendido dos 6.711 deals fechados):
+**2. O que a idade ensina** (aprendido dos 6.711 deals fechados **e** dos deals ainda abertos, que também são evidência — um deal aberto há 90 dias que não fechou prova que 90 dias não garante fechar em 30, e isso tem que contar no cálculo, não só quem já fechou):
 - Deals que morrem, morrem cedo: fechados em até 15 dias ganham só 56%. Os que sobrevivem ganham de 68% a 83%.
-- A partir de **58 dias**, pelo menos metade dos deals fecha nos 30 dias seguintes. Essa é a **janela de fechamento**.
+- A chance de fechar nos próximos 30 dias sobe depois disso, atinge o pico por volta dos **75 dias** (44%) e cai de novo conforme o deal envelhece — não é um degrau que fica alto para sempre.
+- A **janela de fechamento** (44 a 138 dias) é onde essa chance está em pelo menos metade do seu pico.
 - **Nenhum deal fechou depois de 138 dias.** Acima disso não há histórico: o deal é um **zumbi**.
 
-Os dois limites (58 e 138) são calculados a partir dos dados, não escolhidos por mim. Com outra base, eles se ajustam sozinhos.
+Os limites (44, 75 e 138) são calculados a partir dos dados, não escolhidos por mim. Com outra base, eles se ajustam sozinhos.
 
-**3. O score.** `score = percentil de (preço × P(ganhar nos próximos 30 dias | idade))` entre os deals vivos. Um 85 quer dizer que só 15% do pipeline promete mais receita no mês. Assim o score junta **valor, chance e momento** numa grandeza que dá para explicar. Zumbis ficam em 0 e vão para a fila "Decidir". A chance é suavizada em direção à média quando há pouca amostra (prior de 20 deals).
+**3. O score.** `score = P(ganhar nos próximos 30 dias | idade)`, em pontos percentuais — um score de 31 quer dizer 31% de chance, não uma posição no ranking do pipeline. Não depende do valor do deal: um deal de US$ 500 e um de US$ 50 mil na mesma idade têm o mesmo score. Zumbi e prospecção ficam **sem score** (não têm histórico confiável de curto prazo); a fila continua ordenada por receita esperada (valor × chance), que é uma conta diferente do score. A chance é suavizada em direção à média quando há pouca amostra (prior de 20 deals).
 
-**4. A explicação.** Cada deal traz os motivos gerados a partir dos números, por exemplo *"95 dias em negociação: 91% dos deals nessa idade fecham em até 30 dias"*, e uma ação recomendada. O texto é determinístico, sem LLM em runtime: zero alucinação no que o vendedor lê e zero chave de API para rodar.
+**4. A explicação.** Cada deal traz os motivos gerados a partir dos números, por exemplo *"75 dias em negociação: 44% dos deals nessa idade fecham em até 30 dias"*, e uma ação recomendada. O texto é determinístico, sem LLM em runtime: zero alucinação no que o vendedor lê e zero chave de API para rodar.
 
 **5. Correções nos dados:** `GTXPro` → `GTX Pro` (1.480 deals perdiam o preço no join), `technolgy` → `technology`.
 
@@ -127,8 +131,8 @@ Os dois limites (58 e 138) são calculados a partir dos dados, não escolhidos p
 - **O CRM não tem atividade.** Idade é o melhor sinal disponível, não o ideal. Um deal com 150 dias e reunião amanhã aparece como zumbi.
 - **Retrato de 31/12/2017.** Em produção, o motor rodaria toda noite sobre o CRM, e as decisões ("encerrar", "requalifiquei") gravariam de volta nele. Hoje ficam no `localStorage` do navegador.
 - **Prospecção sem histórico de conversão.** Não se sabe quantos prospects chegam a engajar, então a prospecção fica fora do forecast esperado.
-- **Viés de sobrevivência nos zumbis.** A curva vem de deals que fecharam. Deals abertos há mais de 138 dias podem ter um destino que a base não registra, e por isso a ação é "decidir", não "descartar".
-- **O bot de notificação não sabe o email/canal de cada vendedor.** `sales_teams.csv` não tem esse dado, então `--to`/`--webhook` precisam ser passados por fora (variável de ambiente ou agendador). Em produção, isso viria do diretório da empresa (SSO, Slack user ID por `sales_agent`).
+- **Viés de sobrevivência no limite dos 138 dias.** A curva de chance-de-fechar-logo já conta os deals abertos que sobreviveram a uma idade sem fechar (não só quem já fechou), mas o próprio teto de 138 dias vem só de deals fechados, e o dataset termina em 31/12/2017: um deal aberto há 150 dias pode ter um destino que a base ainda não teve tempo de registrar. Por isso a ação em "Decidir" é requalificar ou encerrar, não descartar sozinho.
+- **O bot de notificação não sabe o email/canal de cada vendedor por conta própria.** `sales_teams.csv` não tem esse dado. `notify.py --all --targets targets.json` resolve isso mantendo o diretório num arquivo à parte (ver `targets.example.json`), mas esse arquivo é meu, não do dataset — alguém da RevOps precisaria mantê-lo atualizado à mão. Em produção, isso viria do diretório da empresa (SSO, Slack user ID por `sales_agent`), não de um JSON solto.
 - **Para escalar:** o motor lê CSV; trocar `load()` por uma query no CRM é a única mudança. Se a base crescer 100×, a curva precisa de um algoritmo O(n log n) (anotado no código). Com dados de atividade, dá para adicionar features e rodar os mesmos testes de significância antes de aceitá-las.
 
 ---
@@ -161,6 +165,8 @@ Os dois limites (58 e 138) são calculados a partir dos dados, não escolhidos p
 | Score comprimido entre 62 e 100 | Screenshot: 6 deals com 100 no topo | Percentil só entre deals vivos + teste |
 | Forecast contava prospecção a 63% | Revisão do forecast | Prospecção fora do esperado (US$ 1,2 mi → US$ 472 mil) |
 | Bug de mutação de datas; `git add -f` incluiu `node_modules` | Teste ponta a ponta; revisão do commit | Corrigidos antes de qualquer push |
+| Curva "% fecham em 30 dias" ignorava deals abertos que nunca fecharam (contava só quem já fechou) | Revisão externa (Claude Code, sessão de auditoria): um deal aberto há 90 dias sem fechar é prova de que 90 dias não garante fechar — e não entrava na conta | Denominador passou a incluir os abertos observados pela janela inteira sem fechar; a janela de 58 dias/">=50%" (que não existia mais depois da correção) virou "pico dos 75 dias, limite em metade do pico" |
+| Score = percentil da receita esperada: correlação de 0,90 com o preço, quase um "ordenar por valor" | Mesma auditoria | Score virou a chance de ganhar em 30 dias (não depende do preço); prioridade da fila continua sendo receita esperada, mas é um número separado |
 
 ### O que eu adicionei que a IA sozinha não faria
 

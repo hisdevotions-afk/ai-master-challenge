@@ -20,17 +20,19 @@ export function Forecast({ query }: { query: URLSearchParams }) {
   const by = (query.get("por") as GroupKey) in GROUPS ? (query.get("por") as GroupKey) : "region";
   if (open.length === 0) return <Empty>Nenhum deal aberto neste recorte.</Empty>;
 
-  // Prospecção fica fora do esperado: não há histórico de quantos prospects chegam a engajar.
-  const engaged = (ds: OpenDeal[]) => ds.filter((d) => d.stage === "Engaging");
+  // ev/ev_soon já vêm zerados do motor para zumbi e prospecção (sem histórico
+  // comparável / sem taxa de conversão pra Engaging — ver scoring.py): somar
+  // sobre TODOS os abertos dá o mesmo "esperado" que Meu Dia mostra, sem
+  // precisar filtrar estágio aqui e lá separadamente.
   const declared = sum(open, (d) => d.price);
-  const realistic = sum(engaged(open), (d) => d.ev);
-  const next30 = sum(engaged(open), (d) => d.ev_soon);
+  const realistic = sum(open, (d) => d.ev);
+  const next30 = sum(open, (d) => d.ev_soon);
   const zombie = sum(open.filter((d) => d.bucket === "decidir"), (d) => d.price);
   const prospect = sum(open.filter((d) => d.bucket === "prospectar"), (d) => d.price);
 
   const groups = new Map<string, OpenDeal[]>();
   for (const d of open) groups.set(d[by], [...(groups.get(d[by]) ?? []), d]);
-  const rows = [...groups.entries()].sort((a, b) => sum(engaged(b[1]), (d) => d.ev) - sum(engaged(a[1]), (d) => d.ev));
+  const rows = [...groups.entries()].sort((a, b) => sum(b[1], (d) => d.ev) - sum(a[1], (d) => d.ev));
   // Grupo com pipeline mas nada vivo em negociação: o problema não é fechar, é o funil travado.
   const stalled = rows.filter(([, ds]) => !ds.some((d) => d.bucket === "fechar" || d.bucket === "avancar"));
 
@@ -113,8 +115,8 @@ export function Forecast({ query }: { query: URLSearchParams }) {
                   <tr key={name}>
                     <th scope="row">{name}</th>
                     <td className="num">{money(dec)}</td>
-                    <td className="num">{money(sum(engaged(ds), (d) => d.ev))}</td>
-                    <td className="num">{money(sum(engaged(ds), (d) => d.ev_soon))}</td>
+                    <td className="num">{money(sum(ds, (d) => d.ev))}</td>
+                    <td className="num">{money(sum(ds, (d) => d.ev_soon))}</td>
                     <td className="num">{int(ds.filter((d) => d.bucket === "fechar").length)}</td>
                     <td className="num">{pct(sum(ds.filter((d) => d.bucket === "decidir"), (d) => d.price) / dec)}</td>
                   </tr>

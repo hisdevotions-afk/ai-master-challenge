@@ -95,3 +95,39 @@ Decisão "Encerrar" persiste e tira o zumbi da fila · filtro Região=West + Ven
 - **Cada número do README foi conferido contra o `data.json`** antes de ficar no texto. Dois p-valores estavam arredondados diferente do que o app mostra (0,96 → 0,95; 0,49 → 0,48) e foram alinhados.
 - **Clone limpo da branch:** testes do motor passando, motor regenerando os dados, `npm ci` + build do app funcionando — o caminho que o avaliador vai seguir.
 - **[IA] errou no git:** o `.gitignore` da raiz do repo ignora `submissions/` (contradiz o CONTRIBUTING; não pode ser alterado pela regra do PR). O `git add -f` usado para contornar isso também atropelou o `.gitignore` interno e colocou `node_modules/`, `dist/` e caches do Python no commit. Pego na revisão do commit, antes de qualquer push; corrigido adicionando só a lista explícita de arquivos-fonte.
+
+## 7. Auditoria pós-entrega (achado grave no motor)
+
+Antes de abrir o PR, pedi uma segunda sessão do Claude Code (Claude Opus 5.5) para auditar a submissão como um avaliador externo faria, sem o contexto de quem construiu — comparando o que estava pronto contra o brief do challenge 003, rodando os testes e conferindo os números do `data.json` na unha, não só lendo o README.
+
+**[IA/auditoria] achou dois problemas reais, não de estilo:**
+
+1. **`fit_curve` só aprendia com deals fechados (Won/Lost).** Um deal aberto há 90 dias que ainda não fechou é prova de que 90 dias não garante fechar em 30 — mas ele não entrava em nenhuma conta. Resultado: a curva dizia "91% dos deals com 95 dias fecham em 30 dias", um número otimista por construção (viés de sobrevivência), bem no texto que o README vendia como "zero alucinação". Recalculando com os abertos como censura à direita (contam como "não fechou" só depois de observados pela janela inteira sem fechar), a mesma idade cai para ~40%. Nenhuma idade da base chega perto de 50% depois da correção — a antiga "janela ≥ 58 dias, ≥ 50%" deixou de existir.
+2. **Score = percentil da receita esperada tinha correlação de 0,90 (Spearman) com o preço do deal.** Os 12 primeiros do ranking eram sempre os produtos mais caros. O brief pede explicitamente "não é só ordenar por valor" — e na prática era quase isso.
+
+**[EU] corrigi:**
+- `fit_curve` agora recebe as idades dos deals abertos e os conta no denominador de `close_soon`/`win_soon` (censura à direita). A janela de fechamento deixou de ser um limiar absoluto (`≥ 50%`) escolhido sobre uma curva que eu assumia crescente: com a correção ela sobe, tem um pico (75 dias, 44%) e cai — então passei a achar o vale depois da morte rápida inicial e subir dali até cruzar metade do pico. Os números continuam vindo dos dados, só o algoritmo ficou mais honesto sobre o formato real da curva.
+- Score virou `P(ganhar em 30 dias | idade)` direto — uma probabilidade, não uma posição no ranking. Não depende mais do preço. Zumbi e prospecção ficam sem score (não têm histórico confiável de curto prazo) em vez de um "0" que parecia dizer "chance zero". A prioridade das filas continua sendo receita esperada (valor × chance), mas agora é um número visivelmente separado do score na tela.
+- Efeito colateral bom: como `ev`/`ev_soon` de prospecção agora são sempre 0 (não há taxa de conversão prospecção→Engaging conhecida), o card "Receita esperada" de Meu Dia e o "Esperado" do Forecast, que antes divergiam (um somava tudo, o outro só Engaging), passaram a bater sozinhos — sem precisar sincronizar duas fórmulas na mão.
+- 2 testes novos no motor (`test_censoring_pulls_close_soon_down`, `test_prospecting_and_zombie_have_no_score`) para travar os dois problemas.
+
+Isso não teria aparecido numa revisão visual das telas (que já tinha sido feita) — só apareceu comparando os números do JSON contra a definição matemática deles, de fora. Fica registrado como o exemplo mais forte de "desconfiar do próprio output": mesmo depois de testes passando e telas revisadas, o número que o vendedor lê estava errado.
+
+## 8. Questionando o conserto em vez de dar por encerrado
+
+Depois que a IA corrigiu os dois problemas da seção 7, eu **não aceitei a correção como pronta só porque os testes passaram**. Rodei um segundo review adversarial (Codex, via `/codex:adversarial-review`, modelo diferente do que fez a correção) pedindo explicitamente para questionar se a implementação estava certa, não só procurar bugs de sintaxe — a mesma lógica de não deixar a IA corrigir a própria lição de casa sem outro olhar checando.
+
+**[Codex] achou 2 problemas no que a correção da seção 7 deixou:**
+
+1. **`PRODUCT.md` (o "manual" do produto) ficou descrevendo a fórmula antiga do score** (percentil × preço, zumbi = 0) depois que o código já usava a nova (chance de ganhar em %, zumbi/prospecção = sem score). Documentação e código descolados — quem lesse só o manual acharia que o código está errado.
+2. **A "janela de fechamento" pode estar apoiada num pico instável da curva.** O código acha o ponto de idade com a maior chance histórica de fechar logo (o "pico") e usa metade dele como fronteira da janela. Mas "maior entre várias idades" é sensível a solavancos de amostra pequena — como jogar uma moeda 10 vezes e tirar 7 caras não prova moeda viciada. O corte de 30 deals por idade ajuda, mas não tem garantia formal de que o pico escolhido é real e não ruído; se os dados mudarem um pouco, a fronteira pode pular de lugar sem aviso.
+
+**[EU] entendi cada achado antes de mandar corrigir** — pedi para a IA explicar os dois sem termo técnico, em linguagem simples, antes de decidir o que fazer com eles. Não bastava a IA dizer "achei 2 problemas, corrigindo": exigi entender o mecanismo de cada um para poder julgar se a correção proposta ia fazer sentido.
+
+Esse é o padrão que quero deixar registrado: a IA implementa, mas **a decisão de aceitar ou empurrar de volta para revisão é minha**, e passar a correção por um segundo review antes de considerar o trabalho pronto é parte do processo, não um extra — questionar se a IA fez certo, em vez de copiar e colar o resultado, vale tanto na primeira versão quanto na correção da correção.
+
+## 9. Questionei o bot também, não só o motor
+
+Antes de dar o bot de notificação por pronto, perguntei diretamente: "ele faz sentido, visto que só dispara com webhook/email já configurado?". Não aceitei a resposta óbvia ("sim, é assim que bot funciona") — pedi pra examinar o que acontece **antes** do envio: de onde viria o destino de cada um dos 35 vendedores. Resposta: de lugar nenhum. `sales_teams.csv` não tem email nem Slack ID, então "mandar a fila pra cada vendedor sem abrir o app" (a frase do resumo executivo) exigia rodar o comando 35 vezes à mão, cada uma com o destino certo digitado — não era um bot, era um formatador de mensagem que alguém aciona uma de cada vez.
+
+**[EU] decidi fechar esse buraco** com o menor código que resolve de verdade, não com o mais impressionante: `--all` roda o digest dos 35 vendedores do roster numa chamada, e `--targets targets.json` (arquivo opcional, documentado em `targets.example.json`) dá o destino de cada um. Sem o arquivo, cai no mesmo modo seguro de sempre — só imprime, nada é enviado. Isso é dado que eu inventei (não veio do CSV do Kaggle), então documentei explicitamente que é um artefato que a RevOps manteria na vida real, não um dado do dataset.
