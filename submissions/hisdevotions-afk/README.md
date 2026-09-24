@@ -25,10 +25,11 @@ Construí o **Pipeline em Foco**, um app de vendas (React + motor de scoring em 
 | **Meu dia** | "Em que eu trabalho esta semana?" | Home + Einstein Deal Insights, mas organizado em 4 filas com verbo: **feche**, **decida**, **mantenha em movimento**, **engaje** |
 | **Pipeline** | "Como está tudo?" | List view + Kanban. Ordenado por receita esperada, com a régua de idade em cada linha |
 | **Ficha do deal** | "Por que esse score?" | Einstein Opportunity Scoring. Só entram fatores que passaram no teste estatístico; o resto aparece como "contexto que não entra no score" |
-| **Forecast honesto** | "Quanto vai entrar de verdade?" | Forecast categories. A categoria vem da idade do deal, não da opinião do vendedor. Mostra declarado × esperado × próximos 30 dias e alerta de funil travado |
+| **Forecast** | "Quanto vai entrar, descontada a chance de cada deal?" | Forecast categories. A categoria vem da idade do deal, não da opinião do vendedor. Mostra declarado × esperado × próximos 30 dias e alerta de funil travado |
 | **Contas** | "Qual o histórico com esse cliente?" | Account page, com holding (`subsidiary_of`) |
 | **Time** | "Alguém precisa de ajuda?" | Performance dashboard, mas **sem ranking injusto**: taxa com intervalo de confiança corrigido e foco em higiene de pipeline |
-| **Como o score funciona** | "Posso confiar?" | Model card: curva, testes, correções nos dados, limitações |
+
+Existiu uma sexta tela ("Como o score funciona", com a curva e a tabela de significância) e foi removida do produto: explicar como o modelo foi construído é assunto de documentação, não da ferramenta que o vendedor usa pra decidir. Essa camada de auditoria — teste contra o acaso, correções nos dados, limitações — continua completa aqui no README e em `process-log/PROCESS.md`; dentro do app, só ficou o que ajuda a decidir (motivo do score, taxa do vendedor com sua faixa de confiança, histórico da conta), direto onde o dado aparece.
 
 Filtros de **região → manager → vendedor** em todas as telas. Com um vendedor selecionado, a tela vira "Bom dia, Hayden."
 

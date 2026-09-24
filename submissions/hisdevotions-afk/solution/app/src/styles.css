@@ -493,9 +493,20 @@ table.deals { width: 100%; border-collapse: collapse; }
 .deals tbody th { font-weight: 700; }
 /* primeira coluna fixa: a tabela cresceu (8 colunas com "próxima ação"), rola no eixo x,
    mas "qual deal é esse" nunca pode sair da vista — o mesmo pin que qualquer planilha real faz. */
-.deals th:first-child, .deals td:first-child { position: sticky; left: 0; z-index: 1; background: var(--surface); box-shadow: 1px 0 0 var(--line); }
-.deals thead th:first-child { background: var(--surface-2); z-index: 2; }
-.deals tbody tr:hover td:first-child { background: var(--surface-2); }
+.deals th.cell-pin, .deals td.cell-pin { position: sticky; left: 0; z-index: 1; background: var(--surface); box-shadow: 1px 0 0 var(--line); }
+.deals thead th.cell-pin { background: var(--surface-2); z-index: 2; }
+.deals tbody tr:hover td.cell-pin { background: var(--surface-2); }
+.cell-check { width: 1px; white-space: nowrap; }
+.cell-check input[type="checkbox"] { width: 1.15rem; height: 1.15rem; cursor: pointer; }
+.row-selected { background: color-mix(in srgb, var(--focus) 8%, transparent); }
+.row-selected:hover { background: color-mix(in srgb, var(--focus) 12%, transparent); }
+
+.bulk-bar {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 0.6rem 0.9rem;
+  padding: 0.7rem 1rem; margin-bottom: 0.75rem; border-radius: var(--radius-m);
+  background: color-mix(in srgb, var(--focus) 10%, var(--surface)); border: 1px solid color-mix(in srgb, var(--focus) 30%, transparent);
+  font-size: 0.875rem; font-weight: 600;
+}
 .cell-deal { display: grid; text-decoration: none; font-weight: 700; min-width: 12rem; color: var(--ink); }
 .cell-deal:hover { color: var(--fechar); text-decoration: underline; }
 .cell-ruler { min-width: 150px; }
@@ -570,6 +581,18 @@ table.deals { width: 100%; border-collapse: collapse; }
 .reason-down .reason-icon { color: var(--decidir); background: var(--decidir-soft); }
 .reason-info .reason-icon { color: var(--muted); background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--line-strong); }
 .reason-warn .reason-icon { color: var(--surface); background: var(--warn); }
+/* o motivo que mais pesa: mesmo texto, um degrau mais forte que os demais */
+.reason-primary { font-weight: 600; color: var(--ink); }
+.reason-primary .reason-icon { width: 1.9rem; height: 1.9rem; }
+
+/* motivo em linha, dentro da deal-row (Meu Dia, Contas): compacto, 2 linhas no máximo */
+.reason-compact {
+  grid-template-columns: 1.15rem 1fr; gap: 0.45rem; margin: 0.15rem 0 0;
+  font-size: 0.8125rem; color: var(--muted); line-height: 1.4;
+}
+.reason-compact .reason-icon { width: 1.15rem; height: 1.15rem; }
+.reason-compact .reason-icon svg { width: 10px; height: 10px; }
+.reason-compact .reason-text { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 
 .context ul { padding-left: 0; list-style: none; display: grid; gap: 0.6rem; max-width: 76ch; }
 .context ul li { position: relative; padding-left: 1.25rem; line-height: 1.55; }

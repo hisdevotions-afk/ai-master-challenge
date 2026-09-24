@@ -125,7 +125,7 @@ export function MyDay() {
         <QueueHead bucket="fechar" title="Feche esta semana" count={fechar.length} />
         <ol className="deal-list">
           {fechar.slice(0, 6).map((d) => (
-            <DealRow key={d.id} deal={d} detail={`${pct(d.close_soon)} fecham em 30 dias`} />
+            <DealRow key={d.id} deal={d} />
           ))}
         </ol>
         {fechar.length === 0 && (
@@ -155,7 +155,7 @@ export function MyDay() {
           <QueueHead bucket="avancar" title="Mantenha em movimento" count={avancar.length} />
           <ol className="deal-list">
             {avancar.slice(0, 4).map((d) => (
-              <DealRow key={d.id} deal={d} detail={`janela em ~${model.meta.window_start - (d.age ?? 0)} dias`} />
+              <DealRow key={d.id} deal={d} />
             ))}
           </ol>
           {avancar.length === 0 && <Empty>Nenhum deal novo em negociação.</Empty>}

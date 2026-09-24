@@ -1,6 +1,6 @@
 import { AgeRuler, BUCKETS, BucketTag, CurveChart, DealName, DecisionButtons, Empty, ReasonList, Score } from "../components";
 import { isOpen, useApp } from "../data";
-import { money, pct, pValue, shortDate } from "../format";
+import { money, pct, shortDate } from "../format";
 import { link } from "../router";
 import type { Deal, OpenDeal } from "../types";
 
@@ -25,7 +25,6 @@ function OpenDealView({ deal }: { deal: OpenDeal }) {
   const agent = model.agentByName.get(deal.agent);
   const history = deal.account ? model.deals.filter((d) => d.account === deal.account && (d.stage === "Won" || d.stage === "Lost")) : [];
   const won = history.filter((d) => d.stage === "Won").length;
-  const vendorTest = model.significance.find((t) => t.feature === "Vendedor");
 
   return (
     <article className="deal-page">
@@ -70,17 +69,13 @@ function OpenDealView({ deal }: { deal: OpenDeal }) {
 
       <section className="context">
         <h2>Contexto que não entra no score</h2>
-        <p className="queue-note">
-          Vendedor, conta, produto e setor foram testados contra o acaso e não mudam a chance de ganhar nesta base.{" "}
-          <a href={link("metodo")}>Ver os testes</a>
-        </p>
+        <p className="queue-note">Vendedor, conta, produto e setor não mudam a chance de ganhar nesta base — não é sinal para levar em conta.</p>
         <ul>
           {agent && agent.win_rate != null && (
             <li>
               {agent.name} ganhou {pct(agent.win_rate)} de {agent.closed} deals fechados. A faixa plausível vai de{" "}
               {pct(agent.ci_low)} a {pct(agent.ci_high)}
-              {agent.verdict === "dentro da média" ? ", então é estatisticamente igual à média do time" : `: ${agent.verdict}`}
-              {vendorTest && ` (teste do time todo: p = ${pValue(vendorTest.p_value)})`}.
+              {agent.verdict === "dentro da média" ? ", dentro da média do time" : `: ${agent.verdict}`}.
             </li>
           )}
           {deal.account ? (
