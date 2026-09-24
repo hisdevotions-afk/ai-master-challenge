@@ -21,7 +21,7 @@ const NAV: [string, string][] = [
   ["forecast", "Forecast"],
   ["contas", "Contas"],
   ["time", "Time"],
-  ["metodo", "Como o score funciona"],
+  ["metodo", "Método"], // "Como o score funciona" era o único rótulo de 4 palavras entre vizinhos de 1-2; o título da própria página continua completo
 ];
 
 /** Um traço, um peso: mesmo sistema de ícone das razões do score, agora para a navegação. */
@@ -97,12 +97,18 @@ function initialsOf(name: string): string {
 }
 
 function Topbar() {
+  const { model, setFilters } = useApp();
   const scoped = useScopedOpen();
   const decidir = scoped.filter((d) => d.bucket === "decidir").length;
+  const decidirLabel = decidir > 99 ? "99+" : int(decidir);
   const [q, setQ] = useState("");
   const [resultsOpen, setResultsOpen] = useState(false);
 
   const goToAll = (text: string) => {
+    // busca global vence o recorte: some deal fora do filtro ativo que ela
+    // prometeu mostrar não pode virar "nada encontrado" só porque a página
+    // seguinte (Pipeline) ainda respeita região/manager/vendedor.
+    setFilters(NO_FILTERS);
     window.location.hash = `${link("pipeline")}?busca=${encodeURIComponent(text)}`;
     setResultsOpen(false);
   };
@@ -112,9 +118,15 @@ function Topbar() {
   };
 
   const needle = q.trim().toLowerCase();
+  // model.open, não scoped: a busca do topo é global de propósito (por isso o
+  // ícone e a posição de destaque) — filtrar pelo recorte ativo faria um deal
+  // de outro vendedor "sumir" da busca sem aviso nenhum.
   const matches =
-    needle.length < 2 ? [] : scoped.filter((d) => [d.account, d.product, d.agent, d.id].some((v) => v?.toLowerCase().includes(needle)));
+    needle.length < 2 ? [] : model.open.filter((d) => [d.account, d.product, d.agent, d.id].some((v) => v?.toLowerCase().includes(needle)));
   const showResults = resultsOpen && needle.length >= 2;
+  const resultsStatus = matches.length === 0
+    ? `Nada encontrado para ${q.trim()}`
+    : `${matches.length} ${matches.length === 1 ? "resultado encontrado" : "resultados encontrados"}`;
 
   return (
     <header className="topbar">
@@ -136,6 +148,7 @@ function Topbar() {
         />
         {showResults && (
           <div className="topbar-search-results" id="topbar-search-results" role="listbox">
+            <span role="status" aria-live="polite" className="sr-only">{resultsStatus}</span>
             {matches.length === 0 ? (
               <p className="topbar-search-empty">Nada encontrado para "{q.trim()}".</p>
             ) : (
@@ -164,7 +177,7 @@ function Topbar() {
       <div className="topbar-actions">
         <a className="topbar-queue-chip" href={`${link("pipeline")}?fila=decidir`} title="Deals sem histórico comparável de fechamento, aguardando uma decisão" aria-label={`${int(decidir)} deals aguardando decisão`}>
           <svg viewBox="0 0 18 18" aria-hidden="true"><circle cx="9" cy="9" r="7" fill="none" stroke="currentColor" strokeWidth="1.6" /><path d="M9 5.2V9l3 2" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>
-          <span className="topbar-queue-chip-label" aria-hidden="true">{int(decidir)} aguardando decisão</span>
+          <span className="topbar-queue-chip-label" aria-hidden="true">{decidirLabel} aguardando decisão</span>
         </a>
         <button className="topbar-export" onClick={() => exportPipelineCsv(scoped)} title="Exportar o recorte atual em CSV">
           <svg viewBox="0 0 18 18" aria-hidden="true"><path d="M9 2.5v8.2M5.6 7.4 9 10.8l3.4-3.4" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /><path d="M2.5 13v1.8a1 1 0 0 0 1 1h11a1 1 0 0 0 1-1V13" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /></svg>
@@ -176,9 +189,10 @@ function Topbar() {
 }
 
 function Shell() {
-  const { model, filters } = useApp();
+  const { model, filters, setFilters } = useApp();
   const { parts, query } = useRoute();
   const [page = "", arg] = parts;
+  const hasFilter = Boolean(filters.agent || filters.manager || filters.region);
   const scope = filters.agent || filters.manager || filters.region || "Toda a equipe";
   return (
     <div className="shell">
@@ -194,10 +208,20 @@ function Shell() {
           ))}
         </nav>
         <div className="nav-foot">
-          <div className="nav-operator" title={scope} aria-label={`Escopo: ${scope}`}>
-            <span className="nav-operator-avatar">{scope === "Toda a equipe" ? "G4" : initialsOf(scope)}</span>
-            <span className="nav-operator-name">{scope}</span>
-          </div>
+          {hasFilter ? (
+            <button
+              type="button" className="nav-operator" onClick={() => setFilters(NO_FILTERS)}
+              title={`${scope} — limpar filtro`} aria-label={`Escopo: ${scope}. Limpar filtro.`}
+            >
+              <span className="nav-operator-avatar">{initialsOf(scope)}</span>
+              <span className="nav-operator-name">{scope}</span>
+            </button>
+          ) : (
+            <div className="nav-operator" title={scope} aria-label={`Escopo: ${scope}`}>
+              <span className="nav-operator-avatar">G4</span>
+              <span className="nav-operator-name">{scope}</span>
+            </div>
+          )}
           <p className="nav-foot-date">Dados até {longDate(model.meta.reference_date)}</p>
         </div>
       </aside>
