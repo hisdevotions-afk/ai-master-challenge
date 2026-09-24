@@ -18,8 +18,14 @@ export function BucketTag({ bucket }: { bucket: Bucket }) {
 }
 
 export function Score({ deal, size = "sm" }: { deal: OpenDeal; size?: "sm" | "lg" }) {
+  if (deal.score == null)
+    return (
+      <span className={`score score-${size} score-none on-${deal.bucket}`} title="Sem score: fora do modelo (zumbi ou ainda sem histórico de conversão)">
+        —
+      </span>
+    );
   return (
-    <span className={`score score-${size} on-${deal.bucket}`} title="Percentil da receita esperada nos próximos 30 dias">
+    <span className={`score score-${size} on-${deal.bucket}`} title="Chance de ganhar nos próximos 30 dias">
       {deal.score}
     </span>
   );

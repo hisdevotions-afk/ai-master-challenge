@@ -24,6 +24,7 @@
   --gold: #b8873b;        /* ouro de marca, para preenchimentos e a marca */
   --warn: #a4472a;
   --focus: #33517d;
+  --decidir-on-navy: #dd9088; /* tom de "decidir" calibrado para o navy fixo da topbar (não inverte com o tema) */
 
   --radius-s: 5px;
   --radius-m: 12px;
@@ -126,7 +127,8 @@ p { margin: 0; }
   color: color-mix(in srgb, #f3ede0 62%, transparent);
 }
 .topbar-search {
-  flex: 1 1 auto; max-width: 28rem; margin-left: 1.25rem;
+  position: relative;
+  flex: 1 1 22rem; max-width: 40rem; margin-left: 1.25rem;
   display: flex; align-items: center; gap: 0.55rem;
   background: color-mix(in srgb, white 10%, var(--navy));
   border: 1px solid color-mix(in srgb, white 14%, transparent);
@@ -140,22 +142,46 @@ p { margin: 0; }
   width: 100%; min-width: 0; padding: 0;
 }
 .topbar-search input::placeholder { color: color-mix(in srgb, #f3ede0 45%, transparent); }
-.topbar-alert {
-  position: relative; flex: none; display: inline-flex; align-items: center; justify-content: center;
-  width: 2.25rem; height: 2.25rem; margin-left: auto; border-radius: var(--radius-s);
-  color: color-mix(in srgb, #f3ede0 72%, transparent); text-decoration: none;
-  transition: background 0.15s var(--ease), color 0.15s var(--ease);
+
+/* ─── resultados ao vivo da busca global: preenche enquanto digita, sem esperar Enter ─── */
+.topbar-search-results {
+  position: absolute; top: calc(100% + 8px); left: 0; right: 0; z-index: 10;
+  background: var(--navy-2); border: 1px solid color-mix(in srgb, white 16%, transparent);
+  border-radius: var(--radius-m); box-shadow: var(--shadow-md); overflow: hidden;
 }
-.topbar-alert:hover { background: color-mix(in srgb, white 9%, transparent); color: #f3ede0; }
-.topbar-alert svg { width: 20px; height: 20px; }
-.topbar-alert-count {
-  position: absolute; top: 1px; right: 1px; min-width: 1.05rem; height: 1.05rem; padding: 0 0.25rem;
-  display: inline-flex; align-items: center; justify-content: center;
-  background: var(--gold); color: var(--navy); font-size: 0.6875rem; font-weight: 800;
-  border-radius: 999px; line-height: 1;
+.topbar-search-empty { margin: 0; padding: 0.9rem 1rem; font-size: 0.875rem; color: color-mix(in srgb, #f3ede0 55%, transparent); }
+.topbar-search-results ul { list-style: none; margin: 0; padding: 0.35rem; display: grid; gap: 1px; max-height: 21rem; overflow-y: auto; }
+.topbar-search-results li a {
+  display: flex; align-items: center; gap: 0.7rem; padding: 0.5rem 0.6rem; border-radius: var(--radius-s);
+  text-decoration: none; color: #f3ede0; transition: background 0.12s var(--ease);
 }
+.topbar-search-results li a:hover, .topbar-search-results li a:focus-visible { background: color-mix(in srgb, white 9%, transparent); outline: none; }
+.topbar-search-result-name { min-width: 0; display: grid; font-size: 0.875rem; font-weight: 700; }
+.topbar-search-result-name .deal-product { font-size: 0.75rem; font-weight: 500; color: color-mix(in srgb, #f3ede0 58%, transparent); }
+.topbar-search-result-name .no-account { color: var(--warn); font-weight: 700; }
+.topbar-search-result-agent { margin-left: auto; flex: none; font-size: 0.75rem; color: color-mix(in srgb, #f3ede0 50%, transparent); }
+.topbar-search-all {
+  display: block; width: 100%; font: inherit; cursor: pointer; text-align: center;
+  padding: 0.7rem; border: 0; border-top: 1px solid color-mix(in srgb, white 12%, transparent);
+  background: color-mix(in srgb, white 4%, transparent); color: var(--gold); font-weight: 700; font-size: 0.8125rem;
+  transition: background 0.12s var(--ease);
+}
+.topbar-search-all:hover { background: color-mix(in srgb, white 8%, transparent); }
+
+.topbar-actions { flex: none; margin-left: auto; display: flex; align-items: center; gap: 0.6rem; }
+/* fila "decidir" tem prioridade de negócio (parado além de qualquer ciclo comparável) — acesso rápido, não uma notificação de sistema */
+.topbar-queue-chip {
+  flex: none; display: inline-flex; align-items: center; gap: 0.45rem;
+  padding: 0.4rem 0.8rem; border-radius: var(--radius-s);
+  border: 1px solid color-mix(in srgb, var(--decidir-on-navy) 42%, transparent);
+  color: var(--decidir-on-navy); text-decoration: none; font-weight: 700; font-size: 0.8125rem;
+  transition: background 0.15s var(--ease), transform 0.12s var(--ease);
+}
+.topbar-queue-chip:hover { background: color-mix(in srgb, var(--decidir-on-navy) 14%, transparent); transform: translateY(-1px); }
+.topbar-queue-chip svg { width: 16px; height: 16px; flex: none; }
+.topbar-queue-chip-label { white-space: nowrap; }
 .topbar-export {
-  flex: none; margin-left: auto; display: inline-flex; align-items: center; gap: 0.45rem;
+  flex: none; display: inline-flex; align-items: center; gap: 0.45rem;
   padding: 0.45rem 0.9rem; border-radius: var(--radius-s);
   background: transparent; border: 1px solid color-mix(in srgb, var(--gold) 55%, transparent);
   color: var(--gold); font: inherit; font-weight: 700; font-size: 0.875rem; cursor: pointer;
@@ -235,17 +261,29 @@ main { max-width: 1440px; padding: 2rem 2.5rem 5rem; animation: rise 0.5s var(--
   backdrop-filter: blur(10px) saturate(1.1);
   border-bottom: 1px solid var(--line);
 }
-.filters label { display: grid; gap: 3px; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
+.filter-field { display: grid; gap: 3px; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
+.filter-control { position: relative; display: flex; }
+.filter-field.is-active select { padding-right: 3.4rem; border-color: var(--focus); background-color: color-mix(in srgb, var(--focus) 12%, var(--surface)); }
+.filter-clear {
+  position: absolute; top: 50%; right: 1.55rem; transform: translateY(-50%); z-index: 1;
+  display: inline-grid; place-items: center; width: 1.25rem; height: 1.25rem;
+  border-radius: 50%; border: 0; background: none; padding: 0; cursor: pointer;
+  font-size: 1.05rem; line-height: 1; color: var(--muted);
+  transition: background 0.15s var(--ease), color 0.15s var(--ease);
+}
+.filter-clear:hover { background: color-mix(in srgb, var(--muted) 20%, transparent); color: var(--ink); }
+.filters-summary { display: flex; align-items: center; gap: 0.75rem; margin-left: auto; align-self: center; }
+.filters-count { font-size: 0.8125rem; font-weight: 600; color: var(--muted); text-transform: none; letter-spacing: normal; }
 select, input[type="search"] {
   font: inherit; color: var(--ink); background: var(--surface);
   border: 1px solid var(--line-strong); border-radius: var(--radius-s);
   padding: 0.45rem 0.65rem; min-width: 11rem;
-  transition: border-color 0.15s var(--ease), box-shadow 0.15s var(--ease);
+  transition: border-color 0.15s var(--ease), box-shadow 0.15s var(--ease), background-color 0.15s var(--ease);
 }
 select:hover, input[type="search"]:hover { border-color: var(--muted); }
 select:focus-visible, input:focus-visible { border-color: var(--focus); box-shadow: 0 0 0 3px color-mix(in srgb, var(--focus) 18%, transparent); outline: none; }
 select {
-  appearance: none; padding-right: 2rem; cursor: pointer;
+  appearance: none; padding-right: 2rem; cursor: pointer; width: 100%;
   background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%), linear-gradient(135deg, var(--muted) 50%, transparent 50%);
   background-position: right 0.85rem center, right 0.6rem center;
   background-size: 5px 5px, 5px 5px; background-repeat: no-repeat;
@@ -376,6 +414,7 @@ ul.plain li::before { content: ""; position: absolute; left: 0; top: 0.62em; wid
 .deal-row:hover .score { transform: scale(1.06); }
 .score-sm { width: 2.6rem; height: 2.6rem; font-size: 0.9375rem; }
 .score-lg { width: 5.75rem; height: 5.75rem; font-size: 2.35rem; letter-spacing: -0.03em; box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--c) 26%, transparent); }
+.score-none { opacity: 0.55; font-weight: 600; } /* sem score: fora do modelo, não é um "0%" */
 .on-fechar { --c: var(--fechar); --c-soft: var(--fechar-soft); }
 .on-decidir { --c: var(--decidir); --c-soft: var(--decidir-soft); }
 .on-avancar { --c: var(--avancar); --c-soft: var(--avancar-soft); }
@@ -584,6 +623,8 @@ table.deals { width: 100%; border-collapse: collapse; }
   .topbar .brand-word { font-size: 1.05rem; }
   .topbar-product, .topbar-search, .topbar-scope-label { display: none; }
   .topbar-scope { padding: 0.3rem; }
+  .topbar-queue-chip-label { display: none; }
+  .topbar-queue-chip { padding: 0.4rem; }
   .nav {
     position: sticky; top: 52px; z-index: 4; height: auto; flex-direction: row; align-items: center; gap: 1rem;
     padding: 0.7rem 1rem; overflow-x: auto;
@@ -594,8 +635,9 @@ table.deals { width: 100%; border-collapse: collapse; }
   .nav nav a[aria-current="page"]::before { left: 0.7rem; right: 0.7rem; top: auto; bottom: 0; transform: none; width: auto; height: 3px; }
   .nav-foot, .nav-section { display: none; }
   .filters { padding: 0.75rem 1rem; position: static; }
-  .filters label { flex: 1 1 9rem; }
+  .filter-field { flex: 1 1 9rem; }
   select { min-width: 0; width: 100%; }
+  .filters-summary { margin-left: 0; flex-basis: 100%; justify-content: space-between; }
   /* alvo de toque confortável (~44px) nos controles primários, só onde o dedo, não o mouse, comanda */
   select, .btn, .btn-quiet, .tabs a, .nav nav a { min-height: 44px; display: inline-flex; align-items: center; }
   select { display: block; }

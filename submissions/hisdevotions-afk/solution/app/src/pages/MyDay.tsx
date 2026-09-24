@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { BUCKETS, DealName, DealRow, DecisionButtons, Empty } from "../components";
-import { useApp, useScopedOpen } from "../data";
+import { PRIORITY, useApp, useScopedOpen } from "../data";
 import { int, longDate, money, moneyShort, pct, plural, sum } from "../format";
 import { link } from "../router";
 import type { Bucket, OpenDeal } from "../types";
@@ -44,17 +44,10 @@ function StalledRow({ deal }: { deal: OpenDeal }) {
   );
 }
 
-const ORDER: Record<Bucket, (a: OpenDeal, b: OpenDeal) => number> = {
-  fechar: (a, b) => b.ev_soon - a.ev_soon,
-  decidir: (a, b) => b.price - a.price,       // zumbi: o que mais infla o forecast primeiro
-  avancar: (a, b) => b.ev - a.ev,
-  prospectar: (a, b) => b.ev_soon - a.ev_soon,
-};
-
 export function MyDay() {
   const { model, filters } = useApp();
   const open = useScopedOpen();
-  const queue = (b: Bucket) => open.filter((d) => d.bucket === b).sort(ORDER[b]);
+  const queue = (b: Bucket) => open.filter((d) => d.bucket === b).sort(PRIORITY[b]);
   const [fechar, decidir, avancar, prospectar] = (["fechar", "decidir", "avancar", "prospectar"] as Bucket[]).map(queue);
   const noAccount = open.filter((d) => !d.account).length;
   const declared = sum(open, (d) => d.price);

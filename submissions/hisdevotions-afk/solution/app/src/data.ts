@@ -1,5 +1,5 @@
 import { createContext, useContext } from "react";
-import type { Account, Agent, Deal, OpenDeal, RawData } from "./types";
+import type { Account, Agent, Bucket, Deal, OpenDeal, RawData } from "./types";
 
 export interface Model extends RawData {
   open: OpenDeal[];
@@ -88,3 +88,14 @@ export function useScopedOpen(): OpenDeal[] {
   const { model, filters, decisions } = useApp();
   return model.open.filter((d) => dealInScope(d, filters) && !decisions[d.id]);
 }
+
+// ─── ordem de prioridade dentro de cada fila (usada em Meu Dia e no Pipeline) ─
+// Não é o score (chance): fechar/avançar priorizam receita esperada; decidir
+// prioriza o que mais infla o forecast declarado; prospecção não tem score
+// nem forecast (sem histórico de conversão), então prioriza pelo valor de lista.
+export const PRIORITY: Record<Bucket, (a: OpenDeal, b: OpenDeal) => number> = {
+  fechar: (a, b) => b.ev_soon - a.ev_soon,
+  decidir: (a, b) => b.price - a.price,
+  avancar: (a, b) => b.ev - a.ev,
+  prospectar: (a, b) => b.price - a.price,
+};

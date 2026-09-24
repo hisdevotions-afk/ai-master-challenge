@@ -31,7 +31,8 @@ export interface OpenDeal extends Deal {
   close_soon: number | null;
   ev: number;
   ev_soon: number;
-  score: number;
+  /** Chance de ganhar em até horizon_days, 0–100. null = fora do modelo (zumbi ou prospecção). */
+  score: number | null;
   reasons: Reason[];
   action: string;
 }

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { AgeRuler, BUCKETS, BUCKET_ORDER, DealName, Empty, Score } from "../components";
-import { dealInScope, useApp, useScopedOpen } from "../data";
+import { PRIORITY, dealInScope, useApp, useScopedOpen } from "../data";
 import { int, money, pct, plural } from "../format";
 import { link } from "../router";
 import type { Bucket, OpenDeal } from "../types";
@@ -8,7 +8,7 @@ import type { Bucket, OpenDeal } from "../types";
 type SortKey = "score" | "age" | "win_prob" | "ev_soon" | "price" | "agent";
 
 const COLUMNS: [SortKey, string][] = [
-  ["score", "Score"],
+  ["score", "Chance (30d)"],
   ["agent", "Vendedor"],
   ["age", "Idade"],
   ["win_prob", "Chance de ganhar"],
@@ -93,6 +93,7 @@ function sortValue(d: OpenDeal, key: SortKey): number | string {
   if (key === "agent") return d.agent;
   if (key === "age") return d.age ?? -1;
   if (key === "win_prob") return d.win_prob ?? -1;
+  if (key === "score") return d.score ?? -1;
   return d[key];
 }
 
@@ -165,9 +166,7 @@ function Board({ deals }: { deals: OpenDeal[] }) {
   return (
     <div className="board">
       {BUCKET_ORDER.map((b) => {
-        const col = deals
-          .filter((d) => d.bucket === b)
-          .sort((x, y) => (b === "decidir" ? y.price - x.price : y.score - x.score || y.ev_soon - x.ev_soon));
+        const col = deals.filter((d) => d.bucket === b).sort(PRIORITY[b]);
         return (
           <section key={b} className={`board-col col-${b}`}>
             <h2>

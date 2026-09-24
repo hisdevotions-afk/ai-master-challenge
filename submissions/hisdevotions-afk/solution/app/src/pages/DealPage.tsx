@@ -11,10 +11,12 @@ export function DealPage({ id }: { id: string }) {
   return isOpen(deal) ? <OpenDealView deal={deal} /> : <ClosedDealView deal={deal} />;
 }
 
-function scoreSentence(score: number) {
-  if (score >= 99) return "Está no topo do pipeline em receita esperada para os próximos 30 dias.";
-  if (score === 0) return "Não tem receita esperada nos próximos 30 dias.";
-  return `Está entre os ${100 - score}% do pipeline com mais receita esperada para os próximos 30 dias.`;
+function scoreSentence(deal: OpenDeal, horizonDays: number) {
+  if (deal.score == null)
+    return deal.bucket === "decidir"
+      ? "Fora do modelo: sem histórico comparável para estimar uma chance de curto prazo."
+      : "Fora do modelo: ainda não há histórico de conversão para prospecção.";
+  return `${deal.score}% de chance de fechar nos próximos ${horizonDays} dias, pela idade do deal.`;
 }
 
 function OpenDealView({ deal }: { deal: OpenDeal }) {
@@ -37,7 +39,7 @@ function OpenDealView({ deal }: { deal: OpenDeal }) {
         </div>
         <div className="deal-score">
           <Score deal={deal} size="lg" />
-          <p>{scoreSentence(deal.score)}</p>
+          <p>{scoreSentence(deal, meta.horizon_days)}</p>
         </div>
       </header>
 

@@ -21,7 +21,6 @@ import csv
 import json
 import math
 import random
-from bisect import bisect_left
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import date
@@ -38,7 +37,8 @@ SECTOR_FIXES = {"technolgy": "technology"}
 
 HORIZON = 30        # "fechar logo" = nos próximos 30 dias
 PRIOR = 20          # peso, em deals, da taxa global na suavização (idades com pouca amostra)
-WINDOW_MIN = 0.5    # janela de fechamento: idade em que >= 50% dos deals fecham no horizonte
+MIN_SAMPLE = 30     # abaixo disso um ponto da curva é ruído de amostra pequena (mesmo corte do gráfico)
+WINDOW_FRACTION = 0.5  # janela de fechamento: onde a chance de fechar logo é >= metade do pico
 SIM_RUNS = 2000     # sorteios do teste de significância
 OPEN_STAGES = ("Prospecting", "Engaging")
 
@@ -91,14 +91,20 @@ class AgeCurve:
     fechados que ainda estavam abertos nessa idade."""
     base_rate: float
     max_cycle: int            # maior ciclo já visto; acima disso não há histórico
-    n: list[int]              # deals que sobreviveram a essa idade
-    win: list[float]          # P(ganhar), suavizada para base_rate quando n é pequeno
-    close_soon: list[float]   # P(fechar nos próximos HORIZON dias)
-    win_soon: list[float]     # P(ganhar nos próximos HORIZON dias)
-    window_start: int         # a partir daqui close_soon >= WINDOW_MIN até max_cycle
+    n: list[int]              # deals FECHADOS que sobreviveram a essa idade
+    win: list[float]          # P(ganhar | sobreviveu até aqui), suavizada para base_rate quando n é pequeno
+    close_soon: list[float]   # P(fechar nos próximos HORIZON dias | sobreviveu até aqui)
+    win_soon: list[float]     # P(ganhar nos próximos HORIZON dias | sobreviveu até aqui)
+    window_start: int         # idade onde close_soon cruza metade do seu pico, subindo
 
 
-def fit_curve(closed: list[dict]) -> AgeCurve:
+def fit_curve(closed: list[dict], open_ages: list[int]) -> AgeCurve:
+    """`close_soon`/`win_soon` não podem olhar só para deals já fechados: um deal
+    aberto há 90 dias que ainda não fechou é prova de que 90 dias não garante
+    fechar em 30 — e ele precisa entrar no denominador, não só os que já
+    fecharam. Um deal aberto conta como "não fechou em HORIZON" só quando já
+    foi observado por HORIZON dias inteiros sem fechar (censura à direita);
+    antes disso ele é ambíguo demais (ainda pode fechar) e fica de fora."""
     cycles = [((d["close"] - d["engage"]).days, d["stage"] == "Won") for d in closed]
     base = sum(w for _, w in cycles) / len(cycles)
     max_cycle = max(c for c, _ in cycles)
@@ -107,14 +113,35 @@ def fit_curve(closed: list[dict]) -> AgeCurve:
     for age in range(max_cycle + 1):
         alive = [(c, w) for c, w in cycles if c > age]
         soon = [(c, w) for c, w in alive if c <= age + HORIZON]
+        censored = [a for a in open_ages if a >= age + HORIZON]  # abertos, sobreviveram à janela sem fechar
+        n_soon = len(alive) + len(censored)
         n.append(len(alive))
         win.append((sum(w for _, w in alive) + PRIOR * base) / (len(alive) + PRIOR))
-        close_soon.append(len(soon) / len(alive) if alive else 0.0)
-        win_soon.append(sum(w for _, w in soon) / len(alive) if alive else 0.0)
-    start = max_cycle
-    while start > 0 and close_soon[start - 1] >= WINDOW_MIN:
-        start -= 1
+        close_soon.append(len(soon) / n_soon if n_soon else 0.0)
+        win_soon.append(sum(w for _, w in soon) / n_soon if n_soon else 0.0)
+    start = find_window_start(close_soon, n, max_cycle)
     return AgeCurve(base, max_cycle, n, win, close_soon, win_soon, start)
+
+
+def find_window_start(close_soon: list[float], n: list[int], max_cycle: int) -> int:
+    """Borda esquerda da janela de fechamento. `close_soon` sobe e desce (early
+    deaths perto do dia 0, pico em algum lugar no meio, queda perto do
+    max_cycle porque quem chega tão velho raramente fecha em 30 dias): não dá
+    pra andar de trás pra frente a partir de max_cycle como se fosse um só
+    degrau. Em vez disso, acha o vale depois do pico inicial de mortes rápidas
+    e sobe dali até a taxa cruzar metade do pico — os dois números (pico e
+    vale) vêm dos dados, não são escolhidos à mão."""
+    reliable = [a for a in range(max_cycle + 1) if n[a] >= MIN_SAMPLE]
+    if not reliable:
+        return 0
+    peak_age = max(reliable, key=lambda a: close_soon[a])
+    before_peak = [a for a in reliable if a <= peak_age]
+    valley_age = min(before_peak, key=lambda a: close_soon[a])
+    threshold = WINDOW_FRACTION * close_soon[peak_age]
+    start = valley_age
+    while start < peak_age and close_soon[start] < threshold:
+        start += 1
+    return start
 
 
 # ─── pontuação de um deal aberto ────────────────────────────────────────────
@@ -138,6 +165,7 @@ def score_open(deal: dict, curve: AgeCurve, ref: date) -> dict:
         bucket = "prospectar"
         reasons.append(("i", "Ainda em prospecção: não há data de engajamento, então o relógio não começou"))
         reasons.append(("+", f"Se engajado agora: {_pct(curve.win_soon[0])} dos deals são ganhos em até {HORIZON} dias do engajamento"))
+        reasons.append(("i", "Sem score: não há histórico de quantos prospects chegam a engajar"))
         action = "Faça o primeiro contato qualificado e passe para Engaging."
     else:
         age = (ref - deal["engage"]).days
@@ -160,8 +188,18 @@ def score_open(deal: dict, curve: AgeCurve, ref: date) -> dict:
             reasons.append((sign, f"Deals que chegam a {age} dias ganham {_pct(curve.win[age])} das vezes (média geral {_pct(curve.base_rate)}; base de {curve.n[age]} deals)"))
 
     zombie = bucket == "decidir"
+    prospecting = bucket == "prospectar"
+    # Fora do forecast: zumbi não tem histórico comparável, prospecção não tem
+    # taxa de conversão para Engaging. Contar qualquer um dos dois infla o
+    # "esperado" com receita que o histórico não sustenta (ver Forecast).
+    forecastable = not zombie and not prospecting
     win_prob = None if zombie else curve.win[at]
     close_soon = None if zombie else curve.close_soon[at]
+    # Score = chance de GANHAR em até HORIZON dias, não um ranking contra o resto
+    # do pipeline: um deal de US$ 500 e um de US$ 50 mil na mesma idade têm o
+    # mesmo score. Zumbi e prospecção ficam sem score (None): nenhum dos dois
+    # tem uma chance de curto prazo em que confiar.
+    score = round(100 * curve.win_soon[at]) if forecastable else None
     reasons.append(("i", f"Valor: {deal['product']} a {_money(price)} (preço de lista; deals ganhos fecham em média a 100% dele)"))
     if deal["account"] is None:
         reasons.append(("!", "Sem conta vinculada: cadastre a empresa para o deal entrar no histórico da conta"))
@@ -170,20 +208,12 @@ def score_open(deal: dict, curve: AgeCurve, ref: date) -> dict:
         "bucket": bucket,
         "win_prob": win_prob,
         "close_soon": close_soon,
-        "ev": 0 if zombie else round(price * win_prob),                  # valor esperado total
-        "ev_soon": 0 if zombie else round(price * curve.win_soon[at]),   # receita esperada em HORIZON dias
+        "score": score,
+        "ev": round(price * win_prob) if forecastable else 0,                # valor esperado total
+        "ev_soon": round(price * curve.win_soon[at]) if forecastable else 0,  # receita esperada em HORIZON dias
         "reasons": [{"kind": k, "text": t} for k, t in reasons],
         "action": action,
     }
-
-
-def add_scores(open_deals: list[dict]) -> None:
-    """Score 0–100 = percentil da receita esperada nos próximos 30 dias entre os deals VIVOS.
-    Zumbis ficam em 0 e fora do ranking: incluídos, os ~60% empatados em zero
-    empurravam todo deal vivo para 62–100 e a escala deixava de diferenciar."""
-    live = sorted(d["ev_soon"] for d in open_deals if d["bucket"] != "decidir")
-    for d in open_deals:
-        d["score"] = 0 if d["bucket"] == "decidir" else round(100 * bisect_left(live, d["ev_soon"]) / max(len(live) - 1, 1))
 
 
 # ─── honestidade estatística ────────────────────────────────────────────────
@@ -324,11 +354,11 @@ def build(data_dir: Path = DATA_DIR, ref: date | None = None) -> dict:
     deals, teams, products, accounts = load(data_dir)
     closed = [d for d in deals if d["stage"] in ("Won", "Lost")]
     ref = ref or max(x for d in deals for x in (d["engage"], d["close"]) if x)
-    curve = fit_curve(closed)
     open_deals = [d for d in deals if d["stage"] in OPEN_STAGES]
+    open_ages = [(ref - d["engage"]).days for d in open_deals if d["engage"] is not None]
+    curve = fit_curve(closed, open_ages)
     for d in open_deals:
         d.update(score_open(d, curve, ref))
-    add_scores(open_deals)
     stats = significance(closed, accounts)
     agents = agent_stats(deals, teams, curve.base_rate)
     for d in deals:  # só depois das contas com data: serializa no próprio dict

@@ -17,7 +17,7 @@ def _open(stage="Engaging", age=None, price=1000, account="Acme"):
 
 
 # histórico sintético: tudo que passa de 60 dias fecha até o dia 100
-TOY = s.fit_curve([_closed(5, False)] * 40 + [_closed(90, True)] * 50 + [_closed(100, False)] * 10)
+TOY = s.fit_curve([_closed(5, False)] * 40 + [_closed(90, True)] * 50 + [_closed(100, False)] * 10, [])
 
 
 def test_data_quality_fixes_applied():
@@ -47,11 +47,26 @@ def test_buckets_by_age_and_stage():
 
 
 def test_window_outranks_young_deal_of_same_value():
-    deals = [_open(age=80), _open(age=10)]
-    for d in deals:
-        d.update(s.score_open(d, TOY, REF))
-    s.add_scores(deals)
+    deals = [s.score_open(_open(age=80), TOY, REF), s.score_open(_open(age=10), TOY, REF)]
     assert deals[0]["score"] > deals[1]["score"]
+
+
+def test_censoring_pulls_close_soon_down():
+    # 40 deals reach age 89 and are STILL OPEN 30+ days later without closing.
+    # Ignoring them (closed-only) would say close_soon[89] == 1.0; they prove
+    # otherwise and must drag the estimate down.
+    closed = [_closed(5, False)] * 20 + [_closed(90, True)] * 30
+    blind = s.fit_curve(closed, [])
+    honest = s.fit_curve(closed, open_ages=[130] * 40)  # observed 41+ days past age 89, never closed
+    assert blind.close_soon[89] == 1.0
+    assert honest.close_soon[89] < 0.5
+
+
+def test_prospecting_and_zombie_have_no_score():
+    zombie = s.score_open(_open(age=150), TOY, REF)
+    prospect = s.score_open(_open(stage="Prospecting"), TOY, REF)
+    assert zombie["score"] is None and prospect["score"] is None
+    assert s.score_open(_open(age=80), TOY, REF)["score"] is not None
 
 
 def test_every_deal_explains_itself_and_flags_missing_account():
@@ -87,9 +102,11 @@ def test_real_data_end_to_end():
     assert m["reference_date"] == "2017-12-31" and m["max_cycle"] == 138
     open_deals = [d for d in data["deals"] if d["stage"] in s.OPEN_STAGES]
     assert len(open_deals) == 2089
-    assert all(0 <= d["score"] <= 100 and d["reasons"] for d in open_deals)
-    live = [d["score"] for d in open_deals if d["bucket"] != "decidir"]
-    assert min(live) == 0 and max(live) == 100, "escala precisa usar 0–100 entre deals vivos"
+    assert all(d["reasons"] for d in open_deals)
+    assert all(d["score"] is None or 0 <= d["score"] <= 100 for d in open_deals)
+    # zumbi e prospecção não têm histórico confiável para um score de curto prazo
+    assert all(d["score"] is None for d in open_deals if d["bucket"] in ("decidir", "prospectar"))
+    assert all(d["score"] is not None for d in open_deals if d["bucket"] in ("fechar", "avancar"))
     assert sum(d["bucket"] == "decidir" for d in open_deals) == 1301  # idade >= 138: aberto aos 138 só fecharia depois, e isso nunca aconteceu
     used = {t["feature"] for t in data["significance"] if t["used"]}
     assert used == {"Idade do deal (fechou em até 15 dias ou não)"}
