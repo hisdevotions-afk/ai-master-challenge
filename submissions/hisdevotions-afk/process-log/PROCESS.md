@@ -183,3 +183,23 @@ Numa nova passada de design (a framework **Impeccable**, com os playbooks de lay
 - **`detect.mjs --scope layout` da Impeccable voltou `[]`** (sem defeito) no CSS final.
 
 O `npm run build` passou limpo e o `dist/` foi reconstruído. As 4 mudanças de borda/portabilidade da seção 12 + esta 13 ficaram juntas num único commit local (nada enviado ao GitHub), para visualização no `http://127.0.0.1:8099`.
+
+## 14. Cinco melhorias de "decisão" no Meu Dia
+
+Depois do design centralizado (seção 13), a direção pedida foi "algo em design/inteligência que aprimore de verdade" — não mais aparência, mas o momento em que a tela ajuda (ou deixa de ajudar) o vendedor a decidir. As mudanças vieram de um olhar sobre o que o motor **já calcula** mas a tela **não expõe**, e foram agrupadas em 5 itens.
+
+**14.1 Direção geral: expor o que já existe, não inventar score novo.** O motor (`scoring.py`) já computa `ev_soon` (receita esperada em 30d), `suggested_action` (encerrar/confirmar na fila Decidir) e a curva `win_soon` (chance de ganhar por idade). As melhorias reusam esses três — nenhum número novo foi criado, o que preserva a disciplina do projeto ("nenhuma feature sem dado atrás"). Foi uma escolha de fronteira: **a inteligência não está no score, está na navegação do gesto** (o que faço AGORA? em quantos grupo? onde trava?).
+
+**14.2 Item 1 — Ação do momento (razor top-1).** Um card `razor` no topo do Meu Dia mostra o UMA deal de maior `ev_soon` da fila Fechar, com o seu `action` textual e o link pra ficha. É o "o que eu faço na segunda de manhã" que o challenge pinta ("o que ele vê ao abrir"). Antes isso existia só como a primeira linha de uma fila; agora é uma decisão nomeada. Sem score novo: só escolhe o topo de um ranking que `PRIORITY.fechar` já ordena.
+
+**14.3 Item 2 — Agregado da fila Decidir.** A fila tem 1.301 deals esmagadores. `decide-split` mostra **"1.102 para encerrar | 199 para confirmar antes"** (dados reais do `suggested_action`) + link "Ver todos" — transforma a fila em decisão de gestão de dois números, sem esconder o detalhe de cada deal.
+
+**14.4 Item 3 — Painel de saúde do funil.** `health-strip`, fita discreta com sinais de "o que trava a semana": deals parados além do ciclo (% do aberto), prospecção sem negociação viva (gargalo de engajamento) e deals sem conta vinculada. Os dois últimos são **condicionais** — só aparecem quando o recorte tem mesmo o desequilíbrio, para não virar alarme falso.
+
+**14.5 Item 4 — Destaque do "mais quente" na fila Fechar.** O pico da curva (`win_soon` máx, derivado dos dados via `peakAge`), o deal mais próximo dele ganha o selo "no pico" + destaque da régua; o top-1 recebe a faixa lateral `hot`. Cor continua sendo fila de ação, não decoração — só sublinha urgência relativa DENTRO da mesma fila.
+
+**14.6 Item 5 — Varredura de glassmorphism.** A última superfície translúcida restante (`.filters`, com `backdrop-filter: blur`) virou **papel sólido** (`var(--paper)`, hierarquia por borda + sombra). No dark mode vira banda navy coerente. Confirmado por CDP: `backdropFilter: "none"`.
+
+**[EU] verifiquei por geometria renderizada e por contagem de nós no runtime** (este modelo não lê imagem). No `#/` (Meu Dia) em 1680px: `razor`, `health-strip` e `decide-split` todos alinhados à coluna central (l=284 r=1630, off=122); `hotRows=1`, `peakedRows=1`, `peakBadges=1`; o texto do agregado = "1.102 para encerrar | 199 para confirmar antes | Ver todos"; `filtersBg: "none"`. No mobile (390px) os três alinham à largura (l=18). `detect.mjs --scope layout` voltou `[]`. `npm run build` limpo; `dist/` reconstruído.
+
+Estas 7 mudanças + a seção 13 vão num commit local (nada enviado ao GitHub), para a análise visual no `http://127.0.0.1:8099`.

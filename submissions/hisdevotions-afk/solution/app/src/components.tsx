@@ -204,18 +204,22 @@ export function DecisionButtons({ deal }: { deal: OpenDeal }) {
 
 /** Linha compacta de deal usada em Meu Dia e Contas: o motivo que mais pesa
     vai junto do dado, não só na ficha do deal — decidir não deveria exigir
-    abrir outra tela. */
-export function DealRow({ deal }: { deal: OpenDeal }) {
+    abrir outra tela. `hot` marca a "ação do momento" (maior receita esperada
+    em 30 dias na fila Fechar); `peakGap` destaca o deal mais próximo do pico
+    da curva (máxima chance de ganhar em 30 dias) como o "mais quente". */
+export function DealRow({ deal, hot, peakGap }: { deal: OpenDeal; hot?: boolean; peakGap?: number }) {
   const { model } = useApp();
   const top = topReason(deal.reasons);
+  const closeToPeak = peakGap != null && peakGap <= 5; // a ~1 semana do pico: "foque agora"
   return (
-    <li className="deal-row">
+    <li className={`deal-row${hot ? " hot" : ""}${closeToPeak ? " peaked" : ""}`}>
       <Score deal={deal} />
       <div className="deal-row-main">
         <a className="deal-row-title" href={link("deal", deal.id)}><DealName deal={deal} /></a>
         <div className="deal-row-sub">
           <span>{money(deal.price)}</span>
           <span>{deal.agent}</span>
+          {closeToPeak && <span className="peak-badge">no pico</span>}
         </div>
         <p className={`reason reason-compact reason-${reasonClass(top.kind)}`} title={top.text}>
           <span className="reason-icon"><ReasonIcon kind={top.kind} /></span>
