@@ -24,7 +24,7 @@ export function Pipeline({ query }: { query: URLSearchParams }) {
   const fila = query.get("fila") as Bucket | null;
   const semConta = query.get("semconta") === "1";
   const board = query.get("ver") === "quadro";
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(() => query.get("busca") ?? "");
   const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({ key: "score", dir: -1 });
   const [limit, setLimit] = useState(PAGE);
 
@@ -123,6 +123,7 @@ function DealTable(props: {
                   </button>
                 </th>
               ))}
+              <th scope="col">Próxima ação</th>
             </tr>
           </thead>
           <tbody>
@@ -137,6 +138,12 @@ function DealTable(props: {
                 <td className="num">{pct(d.win_prob)}</td>
                 <td className="num">{money(d.ev_soon)}</td>
                 <td className="num">{money(d.price)}</td>
+                <td className="cell-action">
+                  <a href={link("deal", d.id)} title={d.action}>
+                    <span>{d.action}</span>
+                    <svg viewBox="0 0 14 14" aria-hidden="true"><path d="M4 10 10 4M10 4H5.5M10 4v4.5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                  </a>
+                </td>
               </tr>
             ))}
           </tbody>

@@ -1,8 +1,48 @@
-import { BUCKETS, DealRow, DecisionButtons, Empty } from "../components";
+import type { ReactNode } from "react";
+import { BUCKETS, DealName, DealRow, DecisionButtons, Empty } from "../components";
 import { useApp, useScopedOpen } from "../data";
-import { int, longDate, moneyShort, pct, plural, sum } from "../format";
+import { int, longDate, money, moneyShort, pct, plural, sum } from "../format";
 import { link } from "../router";
 import type { Bucket, OpenDeal } from "../types";
+
+/** Ícone + número real + barra contra um total real — nada de "12% acima da meta" inventado. */
+function StatCard({ icon, label, value, ratio, caption }: { icon: ReactNode; label: string; value: string; ratio: number; caption: string }) {
+  return (
+    <div className="stat-card">
+      <div className="stat-card-head">
+        <span className="stat-card-label">{label}</span>
+        <span className="stat-card-icon">{icon}</span>
+      </div>
+      <p className="stat-card-value">{value}</p>
+      <div className="stat-card-bar"><span style={{ width: `${Math.round(Math.min(ratio, 1) * 100)}%` }} /></div>
+      <p className="stat-card-caption">{caption}</p>
+    </div>
+  );
+}
+
+/** Linha de zumbi: todo deal aqui tem score 0 e a régua sempre pregada no fim —
+    mostrar as duas repetiria um número e um gráfico que não diferenciam nada.
+    O que diferencia é o que o ORDER.decidir já usa pra ordenar: quanto cada deal
+    infla o forecast, e há quanto tempo. */
+function StalledRow({ deal }: { deal: OpenDeal }) {
+  return (
+    <li className="deal-row stalled-row">
+      <span className="score score-sm on-decidir" title={`${deal.age} dias em negociação`}>{deal.age}</span>
+      <div className="deal-row-main">
+        <a className="deal-row-title" href={link("deal", deal.id)}><DealName deal={deal} /></a>
+        <div className="deal-row-sub">
+          <span>{deal.agent}</span>
+          <span>parado além do histórico</span>
+        </div>
+        <DecisionButtons deal={deal} />
+      </div>
+      <span className="stalled-value">
+        <strong>{money(deal.price)}</strong>
+        <span>no forecast declarado</span>
+      </span>
+    </li>
+  );
+}
 
 const ORDER: Record<Bucket, (a: OpenDeal, b: OpenDeal) => number> = {
   fechar: (a, b) => b.ev_soon - a.ev_soon,
@@ -17,6 +57,8 @@ export function MyDay() {
   const queue = (b: Bucket) => open.filter((d) => d.bucket === b).sort(ORDER[b]);
   const [fechar, decidir, avancar, prospectar] = (["fechar", "decidir", "avancar", "prospectar"] as Bucket[]).map(queue);
   const noAccount = open.filter((d) => !d.account).length;
+  const declared = sum(open, (d) => d.price);
+  const expected30 = sum(open, (d) => d.ev_soon);
   const monday = new Date(model.meta.reference_date + "T00:00:00Z");
   monday.setUTCDate(monday.getUTCDate() + 1);
 
@@ -41,9 +83,9 @@ export function MyDay() {
   return (
     <div className="myday">
       <header className="page-head">
-        <p className="kicker">{longDate(monday.toISOString().slice(0, 10))}</p>
         <h1>{who}</h1>
         <p className="lede">
+          Semana de {longDate(monday.toISOString().slice(0, 10))}.{" "}
           {fechar.length > 0 ? (
             <>
               {plural(fechar.length, "deal está", "deals estão")} na janela de fechamento, com{" "}
@@ -61,6 +103,30 @@ export function MyDay() {
           )}
         </p>
       </header>
+
+      <div className="stat-row">
+        <StatCard
+          icon={<svg viewBox="0 0 18 18" aria-hidden="true"><polyline points="2.5,13.5 7,8.5 10.5,11 15.5,4.5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /><polyline points="11.5,4.5 15.5,4.5 15.5,8.5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>}
+          label="Receita esperada (30 dias)"
+          value={moneyShort(expected30)}
+          ratio={declared > 0 ? expected30 / declared : 0}
+          caption={`${pct(declared > 0 ? expected30 / declared : 0)} do pipeline declarado (${moneyShort(declared)})`}
+        />
+        <StatCard
+          icon={<svg viewBox="0 0 18 18" aria-hidden="true"><path d="M2.5 3.5h13L10.2 9.8v5.2l-2.4 1v-6.2Z" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>}
+          label="Na janela de fechamento"
+          value={int(fechar.length)}
+          ratio={open.length > 0 ? fechar.length / open.length : 0}
+          caption={`${plural(fechar.length, "deal", "deals")} de ${int(open.length)} abertos no recorte`}
+        />
+        <StatCard
+          icon={<svg viewBox="0 0 18 18" aria-hidden="true"><circle cx="9" cy="9" r="7" fill="none" stroke="currentColor" strokeWidth="1.6" /><path d="M9 5.2V9l3 2" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>}
+          label="Aguardando decisão"
+          value={int(decidir.length)}
+          ratio={open.length > 0 ? decidir.length / open.length : 0}
+          caption={`${pct(open.length > 0 ? decidir.length / open.length : 0)} do pipeline aberto, sem histórico comparável`}
+        />
+      </div>
 
       <section className="queue queue-fechar">
         <QueueHead bucket="fechar" title="Feche esta semana" count={fechar.length} />
@@ -86,9 +152,7 @@ export function MyDay() {
         </p>
         <ol className="deal-list">
           {decidir.slice(0, 4).map((d) => (
-            <DealRow key={d.id} deal={d} detail="parado além do histórico">
-              <DecisionButtons deal={d} />
-            </DealRow>
+            <StalledRow key={d.id} deal={d} />
           ))}
         </ol>
       </section>

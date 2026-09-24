@@ -108,14 +108,21 @@ export function CurveChart({ curve, meta, age }: { curve: CurvePoint[]; meta: Me
   );
 }
 
-const REASON_ICON: Record<Reason["kind"], string> = { "+": "+", "-": "−", i: "i", "!": "!" };
+/** Um traço, um peso: o mesmo sistema de ícone para toda razão do score. */
+function ReasonIcon({ kind }: { kind: Reason["kind"] }) {
+  const stroke = { fill: "none", stroke: "currentColor", strokeWidth: 1.6, strokeLinecap: "round" as const };
+  if (kind === "+") return <svg viewBox="0 0 14 14" width="14" height="14" aria-hidden="true"><line x1="7" y1="2.5" x2="7" y2="11.5" {...stroke} /><line x1="2.5" y1="7" x2="11.5" y2="7" {...stroke} /></svg>;
+  if (kind === "-") return <svg viewBox="0 0 14 14" width="14" height="14" aria-hidden="true"><line x1="2.5" y1="7" x2="11.5" y2="7" {...stroke} /></svg>;
+  if (kind === "!") return <svg viewBox="0 0 14 14" width="14" height="14" aria-hidden="true"><line x1="7" y1="3" x2="7" y2="8.2" {...stroke} /><circle cx="7" cy="10.8" r="0.9" fill="currentColor" stroke="none" /></svg>;
+  return <svg viewBox="0 0 14 14" width="14" height="14" aria-hidden="true"><circle cx="7" cy="7" r="5.2" {...stroke} /><line x1="7" y1="6.3" x2="7" y2="9.8" {...stroke} /><circle cx="7" cy="4.1" r="0.9" fill="currentColor" stroke="none" /></svg>;
+}
 
 export function ReasonList({ reasons }: { reasons: Reason[] }) {
   return (
     <ul className="reasons">
       {reasons.map((r) => (
         <li key={r.text} className={`reason reason-${r.kind === "+" ? "up" : r.kind === "-" ? "down" : r.kind === "!" ? "warn" : "info"}`}>
-          <span className="reason-icon" aria-hidden="true">{REASON_ICON[r.kind]}</span>
+          <span className="reason-icon"><ReasonIcon kind={r.kind} /></span>
           {r.text}
         </li>
       ))}

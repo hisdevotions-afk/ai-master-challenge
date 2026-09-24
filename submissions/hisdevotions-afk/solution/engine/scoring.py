@@ -3,9 +3,13 @@
 Lê os 4 CSVs do CRM, aprende com os deals já fechados (Won/Lost) o que a IDADE
 de um deal diz sobre a chance e o momento de fechar, e pontua cada deal aberto.
 
-Por que só a idade: na exploração, vendedor, conta, produto, setor, região e
-manager foram testados contra o acaso e nenhum se distinguiu dele (ver
-`significance()` e process-log/PROCESS.md). Eles aparecem na tela como
+Por que só a idade: na exploração, vendedor, conta, produto, setor, região,
+manager e tamanho da conta (receita, funcionários) foram testados contra o
+acaso e nenhum se distinguiu dele (ver `significance()` e
+process-log/PROCESS.md). Tamanho da conta é contínuo, não categórico: em vez
+de comparar grupos fixos, o teste acha o melhor corte binário possível (a
+mesma primitiva de uma árvore de decisão / XGBoost) e mede se esse melhor
+corte bate o acaso — ver `continuous_split_p`. Eles aparecem na tela como
 contexto, mas não pesam no score.
 
 Uso: python scoring.py [--ref AAAA-MM-DD] [--out caminho/data.json]
@@ -206,6 +210,50 @@ def dispersion_p(closed: list[dict], key, rng: random.Random) -> tuple[int, floa
     return len(counts), hits / SIM_RUNS
 
 
+def best_gain_over_sorted(sorted_vals: list[float], wins: list[int]) -> float:
+    """Ganho do melhor split binário sobre uma feature CONTÍNUA já ordenada por
+    valor: a mesma primitiva que uma árvore de decisão (XGBoost, CART) avalia em
+    cada nó. Uma única passada com somas acumuladas testa TODOS os thresholds
+    candidatos em O(n), em vez de recomputar os dois grupos do zero para cada um."""
+    n_total = len(sorted_vals)
+    w_total = sum(wins)
+    base = w_total / n_total
+    best_gain = -1.0
+    cum_n = cum_w = 0
+    for i in range(n_total - 1):
+        cum_n += 1
+        cum_w += wins[i]
+        if sorted_vals[i] == sorted_vals[i + 1]:
+            continue  # só avalia threshold entre valores distintos
+        left_n, left_w = cum_n, cum_w
+        right_n, right_w = n_total - cum_n, w_total - cum_w
+        gain = left_n * (left_w / left_n - base) ** 2 + right_n * (right_w / right_n - base) ** 2
+        best_gain = max(best_gain, gain)
+    return best_gain
+
+
+def continuous_split_p(pairs: list[tuple[float, int]], rng: random.Random) -> tuple[int, float]:
+    """p-valor do melhor split de uma feature contínua: ordena por valor UMA VEZ
+    (o custo O(n log n) de todo o teste) e reusa essa ordem em cada rodada — cada
+    permutação só embaralha os rótulos Won/Lost e faz uma passada O(n), sem
+    reordenar (a mesma ideia do XGBoost: ordenar a feature uma vez, reusar a
+    ordem em cada avaliação de split). Testar o MELHOR de muitos thresholds
+    infla falso-positivo do mesmo jeito que comparar muitos vendedores; a
+    permutação corrige isso simulando o acaso sobre o próprio procedimento de
+    busca, não só sobre um split fixo."""
+    rows = sorted(pairs, key=lambda vw: vw[0])
+    sorted_vals = [v for v, _ in rows]
+    wins = [w for _, w in rows]
+    observed = best_gain_over_sorted(sorted_vals, wins)
+    shuffled = wins[:]
+    hits = 0
+    for _ in range(SIM_RUNS):
+        rng.shuffle(shuffled)
+        if best_gain_over_sorted(sorted_vals, shuffled) >= observed:
+            hits += 1
+    return 2, hits / SIM_RUNS  # 2 = as duas metades do melhor split achado
+
+
 def significance(closed: list[dict], accounts: dict, seed: int = 7) -> list[dict]:
     rng = random.Random(seed)
     cycle = lambda d: (d["close"] - d["engage"]).days  # noqa: E731
@@ -227,6 +275,18 @@ def significance(closed: list[dict], accounts: dict, seed: int = 7) -> list[dict
         groups, p = dispersion_p(closed, key, rng)
         out.append({"feature": name, "groups": groups, "p_value": p, "used": used,
                     "note": note or "Não usado: diferenças do tamanho que o acaso produz."})
+
+    # Tamanho da conta é contínuo (não categórico): testado à parte, com o
+    # melhor split binário em vez de grupos fixos — ver continuous_split_p.
+    continuous = [
+        ("Tamanho da conta (receita anual)", "revenue"),
+        ("Tamanho da conta (funcionários)", "employees"),
+    ]
+    for name, field in continuous:
+        pairs = [(float(accounts[d["account"]][field]), d["stage"] == "Won") for d in closed]
+        groups, p = continuous_split_p(pairs, rng)
+        out.append({"feature": name, "groups": groups, "p_value": p, "used": False,
+                    "note": "Não usado: nem o melhor corte por tamanho de conta bate o acaso."})
     return out
 
 

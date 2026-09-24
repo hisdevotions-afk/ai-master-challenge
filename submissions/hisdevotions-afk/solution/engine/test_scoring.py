@@ -68,6 +68,14 @@ def test_significance_separates_noise_from_signal():
     assert s.dispersion_p(signal, lambda d: d["g"], random.Random(2))[1] < 0.01
 
 
+def test_continuous_split_finds_signal_not_noise():
+    rng = random.Random(3)
+    noise = [(rng.random(), 1 if rng.random() < 0.6 else 0) for _ in range(500)]
+    signal = [(v, 1 if (v > 0.5) == (rng.random() < 0.9) else 0) for v in [rng.random() for _ in range(500)]]
+    assert s.continuous_split_p(noise, random.Random(4))[1] > 0.05
+    assert s.continuous_split_p(signal, random.Random(4))[1] < 0.01
+
+
 def test_wilson_interval():
     low, high = s.wilson(60, 100)
     assert 0.49 < low < 0.6 < high < 0.7

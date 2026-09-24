@@ -10,7 +10,7 @@
 
 ## Executive Summary
 
-Construí o **Pipeline em Foco**, um app de vendas (React + motor de scoring em Python) que diz a cada vendedor onde focar na segunda de manhã, com o porquê de cada prioridade em português claro. Antes de pontuar qualquer coisa, testei cada feature contra o acaso: **vendedor, conta, produto, setor, região e manager não mudam a chance de ganhar nesta base** (p entre 0,22 e 0,99). O único sinal real é a **idade do deal**. É ela que define o score e as filas de ação. O achado que muda a conversa com a Head de RevOps: **65% do pipeline declarado (US$ 3,2 mi de US$ 5,0 mi) está em deals parados além de qualquer ciclo já fechado**, e a região **Central não tem nenhum deal vivo em negociação**.
+Construí o **Pipeline em Foco**, um app de vendas (React + motor de scoring em Python) que diz a cada vendedor onde focar na segunda de manhã, com o porquê de cada prioridade em português claro, e um bot que manda essa mesma fila por Slack ou email sem precisar abrir o app. Antes de pontuar qualquer coisa, testei cada feature contra o acaso: **vendedor, conta, produto, setor, região e manager não mudam a chance de ganhar nesta base** (p entre 0,22 e 0,99). O único sinal real é a **idade do deal**. É ela que define o score e as filas de ação. O achado que muda a conversa com a Head de RevOps: **65% do pipeline declarado (US$ 3,2 mi de US$ 5,0 mi) está em deals parados além de qualquer ciclo já fechado**, e a região **Central não tem nenhum deal vivo em negociação**.
 
 **App publicado:** [URL DO GITHUB PAGES]
 
@@ -53,7 +53,39 @@ O `data.json` com os scores já está versionado em `app/public/`, então não p
 cd submissions/hisdevotions-afk/solution/engine
 python3 scoring.py                    # lê ../data/*.csv e grava ../app/public/data.json
 python3 scoring.py --ref 2017-11-30   # simula outro "hoje"
-python3 test_scoring.py               # 9 testes (ou: python3 -m pytest)
+python3 test_scoring.py               # testes do motor (ou: python3 -m pytest)
+```
+
+**Bot de notificação** (mesma pasta `engine/`, lê o `data.json` já gerado — sem LLM, sem texto novo, só reformata as filas e ações que o app mostra em "Meu dia"):
+```bash
+python3 notify.py --agent "Hayden Neloms"                       # imprime a fila do vendedor no terminal
+python3 notify.py --agent "Hayden Neloms" --webhook $SLACK_URL  # manda pro Slack (incoming webhook)
+python3 notify.py --agent "Hayden Neloms" --to time@empresa.com # manda por email (precisa de SMTP_HOST no ambiente)
+python3 notify.py                                                # digest da empresa inteira
+python3 test_notify.py                                           # testes do bot (ou: python3 -m pytest)
+```
+Sem `--webhook`/`--to`, o bot só imprime — dá pra testar sem credencial nenhuma. Em produção, um cron diário rodaria `scoring.py` e depois `notify.py` para cada vendedor.
+
+Saída real de `python3 notify.py --agent "Hayden Neloms"` (dados de 31/12/2017):
+```
+Bom dia, Hayden.
+
+*Feche esta semana* (5)
+  - Konmatfix — GTX Plus Pro — US$ 4.085 em 30d: Priorize esta semana: o deal está na janela em que os deals fecham.
+  - Sem conta vinculada — MG Advanced — US$ 2.467 em 30d: Priorize esta semana: o deal está na janela em que os deals fecham.
+  ...
+
+*Decida o destino* (44)
+  - Sem conta vinculada — GTX Plus Pro — US$ 0 em 30d: Requalifique ou encerre: confirme com o cliente se ainda existe decisão; se não, marque como perdido.
+  ...
+
+*Mantenha em movimento* (1)
+  - Silis — MG Special — US$ 7 em 30d: Mantenha contato e avance: faltam ~47 dias para a janela de fechamento.
+
+*Engaje* (0)
+  (nenhum deal)
+
+36 deal(s) sem conta vinculada — cadastre a empresa no CRM.
 ```
 
 ### Lógica do scoring
@@ -96,6 +128,7 @@ Os dois limites (58 e 138) são calculados a partir dos dados, não escolhidos p
 - **Retrato de 31/12/2017.** Em produção, o motor rodaria toda noite sobre o CRM, e as decisões ("encerrar", "requalifiquei") gravariam de volta nele. Hoje ficam no `localStorage` do navegador.
 - **Prospecção sem histórico de conversão.** Não se sabe quantos prospects chegam a engajar, então a prospecção fica fora do forecast esperado.
 - **Viés de sobrevivência nos zumbis.** A curva vem de deals que fecharam. Deals abertos há mais de 138 dias podem ter um destino que a base não registra, e por isso a ação é "decidir", não "descartar".
+- **O bot de notificação não sabe o email/canal de cada vendedor.** `sales_teams.csv` não tem esse dado, então `--to`/`--webhook` precisam ser passados por fora (variável de ambiente ou agendador). Em produção, isso viria do diretório da empresa (SSO, Slack user ID por `sales_agent`).
 - **Para escalar:** o motor lê CSV; trocar `load()` por uma query no CRM é a única mudança. Se a base crescer 100×, a curva precisa de um algoritmo O(n log n) (anotado no código). Com dados de atividade, dá para adicionar features e rodar os mesmos testes de significância antes de aceitá-las.
 
 ---
