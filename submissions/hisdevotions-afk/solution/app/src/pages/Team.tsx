@@ -58,11 +58,12 @@ export function Team() {
 function RateBar({ agent, base }: { agent: Agent; base: number }) {
   if (agent.win_rate == null) return <span className="muted">Sem deals fechados</span>;
   const x = (p: number) => `${((p - 0.3) / 0.6) * 100}%`; // eixo de 30% a 90%
+  const label = `${pct(agent.win_rate)} de ${agent.closed} deals fechados, faixa plausível de ${pct(agent.ci_low)} a ${pct(agent.ci_high)}`;
   return (
-    <div className="ratebar" aria-label={`${pct(agent.win_rate)}, faixa de ${pct(agent.ci_low)} a ${pct(agent.ci_high)}`}>
+    <div className="ratebar" title={label} aria-label={label}>
       <span className="ratebar-track">
         <span className="ratebar-range" style={{ left: x(agent.ci_low), right: `calc(100% - ${x(agent.ci_high)})` }} />
-        <span className="ratebar-base" style={{ left: x(base) }} />
+        <span className="ratebar-base" style={{ left: x(base) }} title={`Média do time: ${pct(base)}`} />
         <span className="ratebar-dot" style={{ left: x(agent.win_rate) }} />
       </span>
       <span className="ratebar-label">{pct(agent.win_rate)} de {agent.closed}</span>

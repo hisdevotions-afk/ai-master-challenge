@@ -132,7 +132,7 @@ Os limites (44, 75 e 138) são calculados a partir dos dados, não escolhidos po
 ### Limitações
 
 - **O CRM não tem atividade.** Idade é o melhor sinal disponível, não o ideal. Um deal com 150 dias e reunião amanhã aparece como zumbi.
-- **Retrato de 31/12/2017.** Em produção, o motor rodaria toda noite sobre o CRM, e as decisões ("encerrar", "requalifiquei") gravariam de volta nele. Hoje ficam no `localStorage` do navegador.
+- **Retrato de 31/12/2017.** Em produção, o motor rodaria toda noite sobre o CRM, e as decisões ("encerrar", "requalifiquei") gravariam de volta nele. Hoje ficam no `localStorage` do navegador — dá pra baixar/importar um JSON com as decisões (sidebar) pra levar entre navegadores ou fazer backup, mas não é sincronização de verdade.
 - **Prospecção sem histórico de conversão.** Não se sabe quantos prospects chegam a engajar, então a prospecção fica fora do forecast esperado.
 - **Viés de sobrevivência no limite dos 138 dias.** A curva de chance-de-fechar-logo já conta os deals abertos que sobreviveram a uma idade sem fechar (não só quem já fechou), mas o próprio teto de 138 dias vem só de deals fechados, e o dataset termina em 31/12/2017: um deal aberto há 150 dias pode ter um destino que a base ainda não teve tempo de registrar. Por isso a ação em "Decidir" é requalificar ou encerrar, não descartar sozinho.
 - **O bot de notificação não sabe o email/canal de cada vendedor por conta própria.** `sales_teams.csv` não tem esse dado. `notify.py --all --targets targets.json` resolve isso mantendo o diretório num arquivo à parte (ver `targets.example.json`), mas esse arquivo é meu, não do dataset — alguém da RevOps precisaria mantê-lo atualizado à mão. Em produção, isso viria do diretório da empresa (SSO, Slack user ID por `sales_agent`), não de um JSON solto.
@@ -158,6 +158,7 @@ Os limites (44, 75 e 138) são calculados a partir dos dados, não escolhidos po
 2. **Exploração antes de qualquer feature.** O teste contra o acaso derrubou quase todas as features "óbvias".
 3. Desenho: a IA propôs uma tela única. **Eu corrigi**: a tela matinal é uma feature; o produto é um app de vendas no nível do Salesforce, refinado. Também **questionei** a stack, e saímos de "SPA simples" para React + TS.
 4. Motor com testes → app → revisão com screenshots → correções → teste funcional no navegador.
+5. **Fecho do bulk-decide (seção 12 do PROCESS.md)** — confirmação + desfazer em lote, nota por decisão, exportar/importar decisões e tooltip/hover nos gráficos. Essa última sessão do Claude Code parou por rate limit antes do export do chat; as mudanças estão no código-fonte e registradas no log.
 
 ### Onde a IA errou e como corrigi
 
@@ -184,7 +185,7 @@ Os limites (44, 75 e 138) são calculados a partir dos dados, não escolhidos po
 - [x] Process log detalhado: [`process-log/PROCESS.md`](process-log/PROCESS.md)
 - [x] Screenshots de verificação: [`process-log/screenshots/`](process-log/screenshots/)
 - [x] Git history: commits da branch `submission/hisdevotions-afk`
-- [ ] Chat export da sessão do Claude Code: [adicionar]
+- [ ] Chat export da sessão do Claude Code: sessão da seção 12 do PROCESS.md parou por rate limit antes do export; as mudanças estão no código-fonte e registradas no log, o chat em si segue pendente.
 
 ---
 

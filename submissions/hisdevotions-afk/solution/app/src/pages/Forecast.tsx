@@ -68,10 +68,14 @@ export function Forecast({ query }: { query: URLSearchParams }) {
 
       <section>
         <h2>De onde vem o valor declarado</h2>
-        <div className="stack" role="img" aria-label="Valor declarado por fila">
+        <div className="stack">
           {BUCKET_ORDER.map((b) => {
-            const v = sum(open.filter((d) => d.bucket === b), (d) => d.price);
-            return v > 0 ? <span key={b} className={`stack-${b}`} style={{ flexGrow: v }} /> : null;
+            const ds = open.filter((d) => d.bucket === b);
+            const v = sum(ds, (d) => d.price);
+            const label = `${BUCKETS[b].label}: ${moneyShort(v)} em ${int(ds.length)} deals`;
+            return v > 0 ? (
+              <a key={b} className={`stack-${b}`} style={{ flexGrow: v }} href={`${link("pipeline")}?fila=${b}`} title={label} aria-label={label} />
+            ) : null;
           })}
         </div>
         <ul className="stack-legend">
