@@ -120,6 +120,8 @@ Os limites (44, 75 e 138) são calculados a partir dos dados, não escolhidos po
 
 **5. Correções nos dados:** `GTXPro` → `GTX Pro` (1.480 deals perdiam o preço no join), `technolgy` → `technology`.
 
+**6. Sugestão de encerrar vs. confirmar, só na fila Decidir.** Zumbi ainda está aberto — não existe rótulo ganho/perdido pra treinar um classificador em cima, e não finjo que existe. O que a fila Decidir tem é 1.301 deals sem nenhuma característica que os distinga (é o próprio achado da seção 1), impossíveis de revisar um a um. A sugestão não prevê resultado: prioriza a revisão usando duas coisas que os dados realmente respondem — se existe conta pra sequer confirmar com o cliente, e quanto além do maior ciclo já visto o deal está (a mediana vem dos próprios zumbis, não é escolhida à mão). Sem conta, ou acima da mediana → "Encerre como perdido"; com conta e abaixo da mediana → "Confirme antes de decidir". Sem LLM: uma função em `scoring.py`. O Pipeline deixa selecionar todos os sugeridos pra encerrar numa página e aplicar em lote.
+
 ### Recomendações para a Head de RevOps
 
 1. **Limpar o forecast esta semana.** 1.301 deals (US$ 3,2 mi) estão além de qualquer ciclo já fechado. Cada vendedor decide os seus pela fila "Decidir": requalifica ou encerra.

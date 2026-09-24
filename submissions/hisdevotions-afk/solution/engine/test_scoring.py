@@ -75,6 +75,30 @@ def test_every_deal_explains_itself_and_flags_missing_account():
     assert "+" in kinds and "!" in kinds and r["action"]
 
 
+def _scored(**kwargs):
+    d = _open(**kwargs)
+    d.update(s.score_open(d, TOY, REF))  # como build() faz: mescla no dict original (mantém account etc.)
+    return d
+
+
+def test_suggest_decide_flags_no_account_and_stale_deals():
+    # TOY.max_cycle == 100. Sem histórico de outcome pra zumbi (ainda abertos):
+    # a sugestão só pode vir de conta vinculada + quanto além do maior ciclo.
+    no_account = _scored(age=200, account=None)
+    barely_over = _scored(age=101, account="Acme")   # 1 dia além
+    way_over = _scored(age=180, account="Acme")      # 80 dias além
+    stalled = [no_account, barely_over, way_over]
+    s.suggest_decide(stalled, TOY.max_cycle)
+    assert no_account["suggested_action"] == "encerrar"
+    assert barely_over["suggested_action"] == "confirmar"   # pouco além da mediana, tem conta
+    assert way_over["suggested_action"] == "encerrar"        # bem além da mediana
+    assert "1 dia " in barely_over["action"]  # singular, não "1 dias"
+
+
+def test_suggest_decide_empty_list_does_nothing():
+    s.suggest_decide([], 100)  # não deve levantar exceção
+
+
 def test_significance_separates_noise_from_signal():
     rng = random.Random(1)
     noise = [{"stage": "Won" if rng.random() < 0.6 else "Lost", "g": i % 5} for i in range(1000)]
@@ -108,6 +132,9 @@ def test_real_data_end_to_end():
     assert all(d["score"] is None for d in open_deals if d["bucket"] in ("decidir", "prospectar"))
     assert all(d["score"] is not None for d in open_deals if d["bucket"] in ("fechar", "avancar"))
     assert sum(d["bucket"] == "decidir" for d in open_deals) == 1301  # idade >= 138: aberto aos 138 só fecharia depois, e isso nunca aconteceu
+    decidir = [d for d in open_deals if d["bucket"] == "decidir"]
+    assert all(d["suggested_action"] in ("encerrar", "confirmar") for d in decidir)
+    assert all(d["suggested_action"] is None for d in open_deals if d["bucket"] != "decidir")
     used = {t["feature"] for t in data["significance"] if t["used"]}
     assert used == {"Idade do deal (fechou em até 15 dias ou não)"}
     # teste global de vendedor deu p≈0,3: nenhum vendedor pode ser rotulado como diferente

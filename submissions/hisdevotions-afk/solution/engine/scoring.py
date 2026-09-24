@@ -154,6 +154,10 @@ def _money(v: float) -> str:
     return "US$ " + f"{v:,.0f}".replace(",", ".")
 
 
+def _dias(n: int) -> str:
+    return f"{n} dia" if n == 1 else f"{n} dias"
+
+
 def score_open(deal: dict, curve: AgeCurve, ref: date) -> dict:
     """Chance, momento, valor esperado, fila de ação e o porquê em português."""
     price = deal["price"]
@@ -213,7 +217,39 @@ def score_open(deal: dict, curve: AgeCurve, ref: date) -> dict:
         "ev_soon": round(price * curve.win_soon[at]) if forecastable else 0,  # receita esperada em HORIZON dias
         "reasons": [{"kind": k, "text": t} for k, t in reasons],
         "action": action,
+        "suggested_action": None,  # só a fila "decidir" ganha um valor, em suggest_decide()
     }
+
+
+# ─── sugestão de encerrar vs. confirmar, só para a fila "decidir" ───────────
+#
+# Não é previsão de resultado: zumbi ainda está aberto, não existe rótulo
+# ganho/perdido pra treinar nada em cima. O que dá pra fazer, com honestidade,
+# é priorizar a revisão de 1.300 deals que o teste de significância já provou
+# indistinguíveis entre si — não com um modelo preditivo, com duas
+# características que o próprio dado explica: há quanto tempo além do maior
+# ciclo já visto, e se existe conta pra sequer confirmar com o cliente. A
+# mediana do "quanto além" vem dos próprios zumbis, não é escolhida à mão.
+
+def suggest_decide(stalled: list[dict], max_cycle: int) -> None:
+    if not stalled:
+        return
+    over = sorted(d["age"] - max_cycle for d in stalled)
+    median_over = over[len(over) // 2]
+    for d in stalled:
+        d_over = d["age"] - max_cycle
+        if d["account"] is None:
+            # o motivo já está na lista de razões (score_open já avisa "sem conta vinculada")
+            d["suggested_action"] = "encerrar"
+            d["action"] = "Encerre como perdido: sem conta vinculada, não dá nem para confirmar com o cliente."
+        elif d_over >= median_over:
+            d["suggested_action"] = "encerrar"
+            d["action"] = f"Encerre como perdido: {_dias(d_over)} além do maior ciclo já visto ({max_cycle}) — mais que a metade dos parados."
+            d["reasons"].append({"kind": "-", "text": f"{_dias(d_over)} além do maior ciclo já visto: mais que a metade dos parados, pouco motivo pra dúvida"})
+        else:
+            d["suggested_action"] = "confirmar"
+            d["action"] = f"Confirme com o cliente antes de decidir: só {_dias(d_over)} além do histórico, tem conta vinculada."
+            d["reasons"].append({"kind": "i", "text": f"Só {_dias(d_over)} além do maior ciclo já visto: menos que a metade dos parados, vale confirmar antes de encerrar"})
 
 
 # ─── honestidade estatística ────────────────────────────────────────────────
@@ -359,6 +395,7 @@ def build(data_dir: Path = DATA_DIR, ref: date | None = None) -> dict:
     curve = fit_curve(closed, open_ages)
     for d in open_deals:
         d.update(score_open(d, curve, ref))
+    suggest_decide([d for d in open_deals if d["bucket"] == "decidir"], curve.max_cycle)
     stats = significance(closed, accounts)
     agents = agent_stats(deals, teams, curve.base_rate)
     for d in deals:  # só depois das contas com data: serializa no próprio dict

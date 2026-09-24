@@ -118,6 +118,8 @@ function DealTable(props: {
   const visible = rows.slice(0, props.limit);
   const allSelected = bulkDecide && visible.length > 0 && visible.every((d) => selected.has(d.id));
   const toggleAll = () => setSelected(allSelected ? new Set() : new Set(visible.map((d) => d.id)));
+  const suggestedClose = visible.filter((d) => d.suggested_action === "encerrar");
+  const selectSuggestedClose = () => setSelected(new Set(suggestedClose.map((d) => d.id)));
   const toggleOne = (id: string) =>
     setSelected((prev) => {
       const next = new Set(prev);
@@ -141,7 +143,14 @@ function DealTable(props: {
               <button className="btn-link" onClick={() => setSelected(new Set())}>Limpar seleção</button>
             </>
           ) : (
-            <span className="muted">Marque os deals abaixo para requalificar ou encerrar vários de uma vez.</span>
+            <>
+              <span className="muted">Marque os deals abaixo para requalificar ou encerrar vários de uma vez.</span>
+              {suggestedClose.length > 0 && (
+                <button className="btn-link" onClick={selectSuggestedClose}>
+                  Selecionar {plural(suggestedClose.length, "sugerido", "sugeridos")} para encerrar
+                </button>
+              )}
+            </>
           )}
         </div>
       )}
