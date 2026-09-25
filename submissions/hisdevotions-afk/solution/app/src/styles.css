@@ -265,10 +265,13 @@ button.nav-operator:hover { background: color-mix(in srgb, white 8%, transparent
 .main { grid-area: main; min-width: 0; }
 /* o frame editorial: a coluna do conteúdo e a faixa de filtros compartilham o
    mesmo compasso centralizado (broadSheet) — em tela larga, papel dos dois lados,
-   em vez de ler tudo grudado na esquerda. */
+   em vez de ler tudo grudado na esquerda. O auto-centering de margin-inline só
+   entra em ação acima de ~1680px (244px de rail + 1440px de teto); abaixo
+   disso — a maioria das telas reais — a folga vem só do padding, por isso ele
+   escala com a viewport (clamp) em vez de ficar travado em 2.5rem. */
 main {
   max-width: 1440px; width: 100%; margin-inline: auto;
-  padding: 2rem 2.5rem 5rem;
+  padding: 2rem clamp(1.75rem, 3.5vw, 4rem) 5rem;
   animation: rise 0.5s var(--ease) both;
 }
 @keyframes rise { from { opacity: 0.4; transform: translateY(6px); } to { opacity: 1; transform: none; } }
@@ -277,7 +280,7 @@ main {
   position: sticky; top: 60px; z-index: 3;
   max-width: 1440px; width: 100%; margin-inline: auto;
   display: flex; flex-wrap: wrap; align-items: end; gap: 0.75rem 1.5rem;
-  padding: 0.85rem 2.5rem;
+  padding: 0.85rem clamp(1.75rem, 3.5vw, 4rem);
   /* papel SÓLIDO: a faixa é uma superfície editorial opaca, não um vidro que
      deixa o conteúdo vazar por trás. A hierarquia vem da borda + sombra, não
      de translucidez — consistente com todas as outras superfícies do app. */
@@ -342,8 +345,14 @@ select {
 
 /* ─── cabeçalho de página ────────────────────────────────────────────────── */
 
-.page-head { display: grid; gap: 0.6rem; margin-bottom: 2.25rem; max-width: 72ch; }
-.lede { font-family: "Libre Caslon Text", Georgia, serif; font-size: 1.25rem; line-height: 1.5; color: var(--ink); font-weight: 400; }
+/* sem max-width aqui: o h1 usa a coluna inteira (títulos curtos não precisam de
+   medida de leitura), só o parágrafo abaixo (.lede) limita a própria largura —
+   ch calculado na fonte serifada dele, não na sans herdada do body. */
+.page-head { display: grid; gap: 0.85rem; margin-bottom: 3rem; }
+.lede {
+  font-family: "Libre Caslon Text", Georgia, serif; font-size: 1.3125rem; line-height: 1.6; color: var(--ink); font-weight: 400;
+  max-width: 46rem;
+}
 .lede strong { font-weight: 700; color: var(--fechar); }
 .back { display: inline-flex; align-items: center; gap: 0.3rem; margin-bottom: 1.25rem; color: var(--muted); font-weight: 700; text-decoration: none; }
 .back::before {
@@ -864,7 +873,8 @@ tr.row-decidir .cell-action a { color: color-mix(in srgb, var(--decidir) 78%, va
   select, .btn, .btn-quiet, .tabs a, .nav nav a { min-height: 44px; display: inline-flex; align-items: center; }
   select { display: block; }
   main { padding: 1.5rem 1.1rem 3.5rem; }
-  .lede { font-size: 1.1rem; }
+  .page-head { gap: 0.6rem; margin-bottom: 2rem; }
+  .lede { font-size: 1.1rem; line-height: 1.5; max-width: none; }
   .razor { padding: 0.9rem 1rem; }
   .razor-body { gap: 0.75rem; }
   .razor-open { letter-spacing: 0.03em; }
