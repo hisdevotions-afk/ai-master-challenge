@@ -308,10 +308,27 @@ Durante essas duas seções, outra sessão do Claude Code (Claude Sonnet 5) trab
 
 Cada número citado no README foi recalculado nesta auditoria a partir do `data.json` e dos CSVs: 65% do pipeline declarado parado (US$ 3.227.151 de US$ 4.966.215), 1.301 zumbis, 259 deals na janela, a divisão de 1.102 e 199 na fila Decidir, a Central com 408 parados, 500 em prospecção e nenhum deal vivo, 56% de ganho para quem fecha em até 15 dias contra 68,5% depois disso, o pico aos 75 dias (44%) e os 5 deals na janela do Hayden.
 
-### O que ficou pendente
+### O que ficou pendente, depois desta auditoria
 
-- O README ainda tem os campos do template para preencher: nome, LinkedIn, URL do app publicado e data de envio.
-- A branch `submission/hisdevotions-afk` não foi enviada ao GitHub (o fork só tem `main`), e o PR não foi aberto. O título precisa seguir o formato `[Submission] Nome — Challenge 003`.
-- Os screenshots de 12 a 16 caem no `.gitignore` da raiz, que ignora `submissions/` inteira. Eles precisam entrar com `git add -f`, um por um, sem arrastar `dist/`, os caches do Python e o `solution/app/.impeccable/hook.cache.json` (o mesmo cuidado da seção 6).
-- A pasta `.impeccable/` na raiz do repositório foi criada pela ferramenta de design e fica fora da submissão. Ela não pode entrar no commit, porque o CONTRIBUTING rejeita PR que altera arquivos fora de `submissions/`.
+- O README ainda tem os campos do template para preencher: nome, LinkedIn e data de envio.
+- O PR não foi aberto. O título precisa seguir o formato `[Submission] Nome — Challenge 003`.
 - O `DESIGN.md` ficou desatualizado: descreve o tema claro como principal, traz as cores do tema claro nos tokens e a régua de idade na fila Fechar. Ele não foi reescrito à mão porque o caminho previsto é o `/impeccable document`, que regenera o arquivo a partir do código.
+
+## 18. Commit, branch no GitHub e publicação
+
+Com as correções da seção 17 prontas, pedi para aplicá-las, garantir que a pasta `.impeccable/` da raiz não fosse commitada, remover a exigência de chat export e publicar a branch e o app.
+
+[EU] Antes de mexer no git, chequei três coisas: se o `.impeccable/` da raiz estava rastreado (não estava), se algum arquivo fora de `submissions/hisdevotions-afk/` tinha mudado desde `origin/main` (nenhum) e se as branches locais e remotas batiam com o que o CONTRIBUTING espera. Achei que a branch `main` local tinha 5 commits de submissão que nunca foram enviados ao GitHub, provavelmente porque o trabalho começou direto em `main` antes de a branch `submission/hisdevotions-afk` existir. Como o `origin/main` do fork ainda está limpo (na mesma versão do template), decidi não empurrar `main`: só a branch de submissão foi enviada, para não levar commits de submissão para dentro de `main` no GitHub.
+
+O que fiz:
+
+1. Adicionei `.impeccable/` ao `.git/info/exclude` (arquivo local, nunca versionado) como rede de segurança extra contra um `git add -A` por engano.
+2. `git add` explícito dos cinco arquivos alterados e `git add -f` dos cinco screenshots novos, um por um. Conferi a lista de arquivos staged antes de commitar: nenhum tocava fora de `submissions/hisdevotions-afk/`, e nada de `dist/`, `node_modules/`, cache do Python ou `.impeccable/`.
+3. Rodei de novo o build e as duas suítes de teste (14 do motor, 8 do bot) antes do commit.
+4. Commit na branch `submission/hisdevotions-afk` e `git push -u origin submission/hisdevotions-afk`. A branch existe agora em `github.com/hisdevotions-afk/ai-master-challenge`.
+5. Para o GitHub Pages, criei uma branch `gh-pages` numa worktree separada (órfã, sem histórico da submissão), copiei o `dist/` do build para a raiz dela, adicionei um `.nojekyll` e fiz o push. Essa branch é só hospedagem: não entra no PR e não compartilha histórico com `submission/hisdevotions-afk`.
+6. Ativei o GitHub Pages pela API (`gh api`) apontando para `gh-pages` na raiz, e acompanhei o build até o status virar `built`.
+7. [EU] Verifiquei o site publicado no navegador, não só o status da API: a Overview carrega com os dados reais, o `data.json` responde 200, não há erro no console, e a navegação por hash (`#/pipeline`) funciona sem configuração de servidor, porque o Pages serve arquivo estático puro.
+8. Atualizei o README com a URL publicada: `https://hisdevotions-afk.github.io/ai-master-challenge/`.
+
+Não abri o PR. Faltam os campos do template (nome, LinkedIn, data), e abrir o PR é o passo que efetivamente inscreve a submissão. Isso fica para quem vai preencher esses campos e revisar o resultado antes do envio.

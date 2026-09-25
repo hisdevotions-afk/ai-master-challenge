@@ -12,7 +12,7 @@
 
 Construí o Pipeline em Foco, um app de vendas em React com um motor de scoring em Python. Na segunda de manhã ele mostra a cada vendedor em que deals trabalhar e explica em português por que cada um está ali. Um bot manda a mesma fila por Slack ou email para quem não quiser abrir o app. Antes de pontuar qualquer coisa, testei cada característica do CRM contra o acaso: vendedor, conta, tamanho da conta, produto, setor, região e manager não mudam a chance de ganhar nesta base (p entre 0,22 e 0,99). O único sinal que passou foi a idade do deal, e é ela que define o score e as filas de ação. O achado que mais importa para a Head de RevOps é que 65% do pipeline declarado (US$ 3,2 mi de US$ 5,0 mi) está em deals parados além do maior ciclo que a base já fechou, e que a região Central não tem nenhum deal vivo em negociação.
 
-App publicado: [URL DO GITHUB PAGES]
+App publicado: https://hisdevotions-afk.github.io/ai-master-challenge/
 
 ---
 
@@ -49,7 +49,7 @@ A lista do Pipeline está em [`15-pipeline.png`](process-log/screenshots/15-pipe
 
 ### Setup
 
-Para só ver, abra [URL DO GITHUB PAGES].
+Para só ver, abra https://hisdevotions-afk.github.io/ai-master-challenge/.
 
 Para rodar local (Node 22+):
 ```bash
