@@ -1,9 +1,9 @@
-# Submissão — [SEU NOME] — Challenge 003
+# Submissão — ROBERTO QUIRINO — Challenge 003
 
 ## Sobre mim
 
-- **Nome:** [SEU NOME]
-- **LinkedIn:** [LINK]
+- **Nome:** Roberto Quirino
+- **LinkedIn:** https://www.linkedin.com/in/roberto-quirino/
 - **Challenge escolhido:** 003 (Lead Scorer)
 
 ---
