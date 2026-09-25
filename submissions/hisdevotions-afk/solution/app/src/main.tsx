@@ -15,7 +15,7 @@ import logoMark from "./assets/logo-mark.png";
 import "./styles.css";
 
 const NAV: [string, string][] = [
-  ["", "Meu dia"],
+  ["", "Overview"],
   ["pipeline", "Pipeline"],
   ["forecast", "Forecast"],
   ["contas", "Contas"],
@@ -290,7 +290,7 @@ function Shell() {
           {page === "contas" && (arg ? <AccountPage name={arg} /> : <Accounts />)}
           {page === "time" && <Team />}
           {!NAV.some(([slug]) => slug === page) && page !== "deal" && (
-            <p className="empty">Essa página não existe. <a href="#/">Voltar para Meu dia</a></p>
+            <p className="empty">Essa página não existe. <a href="#/">Voltar para Overview</a></p>
           )}
         </main>
       </div>
