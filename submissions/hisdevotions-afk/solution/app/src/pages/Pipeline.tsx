@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { AgeRuler, BUCKETS, BUCKET_ORDER, DealName, Empty, Score } from "../components";
 import { PRIORITY, dealInScope, recentlyClosed, useApp, useScopedOpen, type DecisionKind } from "../data";
 import { int, money, pct, plural, shortDateTime } from "../format";
@@ -28,7 +28,6 @@ export function Pipeline({ query }: { query: URLSearchParams }) {
   const closed = recentlyClosed(model, filters, decisions);
   const [search, setSearch] = useState(() => query.get("busca") ?? "");
   const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({ key: "score", dir: -1 });
-  const [limit, setLimit] = useState(PAGE);
 
   const href = (changes: Record<string, string | null>) => {
     const q = new URLSearchParams(query);
@@ -107,7 +106,7 @@ export function Pipeline({ query }: { query: URLSearchParams }) {
       ) : board ? (
         <Board deals={visible} />
       ) : (
-        <DealTable deals={visible} sort={sort} setSort={setSort} limit={limit} setLimit={setLimit} bulkDecide={fila === "decidir"} />
+        <DealTable deals={visible} sort={sort} setSort={setSort} bulkDecide={fila === "decidir"} />
       )}
     </div>
   );
@@ -170,8 +169,6 @@ function DealTable(props: {
   deals: OpenDeal[];
   sort: { key: SortKey; dir: 1 | -1 };
   setSort: (s: { key: SortKey; dir: 1 | -1 }) => void;
-  limit: number;
-  setLimit: (n: number) => void;
   /** Decidir é a única fila onde nenhuma característica distingue um deal do outro
       (ver os testes de significância no README) — revisar 1.300 um a um não muda
       a decisão, então aqui, e só aqui, dá pra decidir em lote. */
@@ -179,6 +176,11 @@ function DealTable(props: {
 }) {
   const { model, decide } = useApp();
   const { sort, bulkDecide } = props;
+  const tableWrap = useRef<HTMLDivElement>(null);
+  // Paginação por clique, não scroll infinito: cada página mostra PAGE deals e o
+  // controle leva de volta ao topo da tabela — um gesto explícito, não um
+  // "Mostrar mais" que cresce a lista sem fim.
+  const [page, setPage] = useState(0);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [confirming, setConfirming] = useState<DecisionKind | null>(null);
   const [lastBulk, setLastBulk] = useState<{ kind: DecisionKind; ids: string[] } | null>(null);
@@ -190,7 +192,15 @@ function DealTable(props: {
     const va = sortValue(a, sort.key), vb = sortValue(b, sort.key);
     return (va < vb ? -1 : va > vb ? 1 : b.ev_soon - a.ev_soon) * sort.dir;
   });
-  const visible = rows.slice(0, props.limit);
+  const pageCount = Math.max(1, Math.ceil(rows.length / PAGE));
+  const clamped = Math.min(page, pageCount - 1);
+  const go = (p: number) => {
+    setPage(Math.min(Math.max(p, 0), pageCount - 1));
+    // leva o olhar pra primeira linha da nova página, não pra onde o scroll estava
+    tableWrap.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+  const start = clamped * PAGE;
+  const visible = rows.slice(start, start + PAGE);
   const allSelected = bulkDecide && visible.length > 0 && visible.every((d) => selected.has(d.id));
   const toggleAll = () => setSelected(allSelected ? new Set() : new Set(visible.map((d) => d.id)));
   const suggestedClose = visible.filter((d) => d.suggested_action === "encerrar");
@@ -336,7 +346,7 @@ function DealTable(props: {
           )}
         </div>
       )}
-      <div className="table-wrap">
+      <div className="table-wrap" ref={tableWrap}>
         <table className="deals">
           <thead>
             <tr>
@@ -387,11 +397,22 @@ function DealTable(props: {
           </tbody>
         </table>
       </div>
-      {rows.length > props.limit && (
-        <button className="btn more" onClick={() => props.setLimit(props.limit + PAGE)}>
-          Mostrar mais {Math.min(PAGE, rows.length - props.limit)} de {int(rows.length - props.limit)} restantes
+      <nav className="pager" aria-label="Paginação da lista">
+        <span className="pager-info">
+          {int(start + 1)}–{int(start + visible.length)} de {int(rows.length)}
+        </span>
+        <button className="btn btn-quiet" disabled={clamped === 0} onClick={() => go(clamped - 1)} aria-label="Página anterior">
+          <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" /></svg>
+          Anterior
         </button>
-      )}
+        <span className="pager-page">
+          Página {clamped + 1} de {pageCount}
+        </span>
+        <button className="btn btn-quiet" disabled={clamped >= pageCount - 1} onClick={() => go(clamped + 1)} aria-label="Próxima página">
+          Próxima
+          <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" /></svg>
+        </button>
+      </nav>
     </>
   );
 }
