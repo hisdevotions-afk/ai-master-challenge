@@ -1,11 +1,44 @@
 /* ─────────────────────────────────────────────────────────────────────────
    Pipeline em Foco — identidade G4: broadsheet de negócios.
-   Campo navy estrutural sobre papel marfim, ouro reservado ao dinheiro
-   (fila "Fechar", marca, CTAs). Cor = fila de ação:
+   Campo navy quase-preto (padrão), ouro reservado ao dinheiro
+   (fila "Fechar", marca, CTAs). Tema claro disponível via data-theme="light".
+   Cor = fila de ação:
    Ouro: janela de fechamento. Bordô: parado além do histórico (decidir).
    Sálvia: cedo (avançar). Azul-ardósia: ainda não engajado (prospectar).
    ───────────────────────────────────────────────────────────────────────── */
 :root {
+  --paper: #080d16;
+  --surface: #101c2c;
+  --surface-2: #0d1521;
+  --navy: #0a1421;
+  --navy-2: #16283f;
+  --ink: #e8e0d0;
+  --muted: #a39a86;
+  --line: #263349;
+  --line-strong: #34455e;
+
+  --fechar: #d9ac52;      --fechar-soft: #33290f;
+  --decidir: #dd9088;     --decidir-soft: #35211f;
+  --avancar: #9cbb84;     --avancar-soft: #1e2a1a;
+  --prospectar: #8fb0dd;  --prospectar-soft: #172538;
+
+  --gold: #d9ac52;        /* ouro de marca, para preenchimentos e a marca */
+  --warn: #e58a6c;
+  --focus: #8fb0dd;
+  --decidir-on-navy: #dd9088; /* tom de "decidir" calibrado para o navy fixo da topbar (não inverte com o tema) */
+
+  --radius-s: 5px;
+  --radius-m: 12px;
+  --radius-l: 16px;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.4);
+  --ease: cubic-bezier(0.2, 0.7, 0.25, 1);
+  color-scheme: dark;
+}
+
+/* tema claro: opt-in explícito (data-theme="light"), não o padrão — a
+   identidade do produto é o navy quase-preto com ouro, como no design. */
+:root[data-theme="light"] {
   --paper: #f3ede0;
   --surface: #fffdf8;
   --surface-2: #faf5ea;
@@ -21,44 +54,12 @@
   --avancar: #4c6440;     --avancar-soft: #dde4d1;
   --prospectar: #33517d;  --prospectar-soft: #d9e2f0;
 
-  --gold: #b8873b;        /* ouro de marca, para preenchimentos e a marca */
+  --gold: #b8873b;
   --warn: #a4472a;
   --focus: #33517d;
-  --decidir-on-navy: #dd9088; /* tom de "decidir" calibrado para o navy fixo da topbar (não inverte com o tema) */
-
-  --radius-s: 5px;
-  --radius-m: 12px;
-  --radius-l: 16px;
   --shadow-sm: 0 1px 2px rgba(18, 35, 60, 0.06), 0 2px 8px rgba(18, 35, 60, 0.05);
   --shadow-md: 0 6px 18px rgba(18, 35, 60, 0.10), 0 1px 3px rgba(18, 35, 60, 0.07);
-  --ease: cubic-bezier(0.2, 0.7, 0.25, 1);
   color-scheme: light;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --paper: #0d1826;
-    --surface: #15263c;
-    --surface-2: #122135;
-    --navy: #0a1421;
-    --navy-2: #16283f;
-    --ink: #e8e0d0;
-    --muted: #a39a86;
-    --line: #26374f;
-    --line-strong: #32465f;
-
-    --fechar: #d9ac52;      --fechar-soft: #33290f;
-    --decidir: #dd9088;     --decidir-soft: #35211f;
-    --avancar: #9cbb84;     --avancar-soft: #1e2a1a;
-    --prospectar: #8fb0dd;  --prospectar-soft: #172538;
-
-    --gold: #d9ac52;
-    --warn: #e58a6c;
-    --focus: #8fb0dd;
-    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
-    --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.4);
-    color-scheme: dark;
-  }
 }
 
 * { box-sizing: border-box; }
@@ -326,6 +327,19 @@ select {
 .btn-link:hover { text-decoration-thickness: 2px; }
 .more { margin-top: 1.25rem; }
 
+/* paginação por clique (Pipeline): alternar entre páginas de 100 deals com
+   retorno ao topo da tabela — em vez de "Mostrar mais" que cresce a lista sem fim */
+.pager {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem;
+  margin-top: 1.1rem; padding: 0.8rem 0 0;
+  border-top: 1px solid var(--line);
+  font-size: 0.875rem; color: var(--muted);
+}
+.pager-info { margin-right: auto; font-weight: 600; }
+.pager-page { font-weight: 700; color: var(--ink); }
+.pager .btn { padding: 0.4rem 0.9rem; }
+.pager .btn:disabled { opacity: 0.45; cursor: not-allowed; transform: none; box-shadow: none; }
+
 /* ─── cabeçalho de página ────────────────────────────────────────────────── */
 
 .page-head { display: grid; gap: 0.6rem; margin-bottom: 2.25rem; max-width: 72ch; }
@@ -405,8 +419,8 @@ ul.plain li::before { content: ""; position: absolute; left: 0; top: 0.62em; wid
 .deal-row-main { min-width: 0; display: grid; gap: 0.2rem; }
 .deal-row-title { font-weight: 700; text-decoration: none; display: flex; flex-wrap: wrap; gap: 0 0.5rem; align-items: baseline; color: var(--ink); }
 .deal-row-title:hover { color: var(--fechar); text-decoration: underline; text-underline-offset: 3px; }
-.deal-row-sub { display: flex; flex-wrap: wrap; gap: 0 1rem; font-size: 0.875rem; color: var(--muted); }
-.deal-row-sub > span:first-child { font-weight: 600; color: var(--ink); }
+.deal-row-sub { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 1rem; font-size: 0.875rem; color: var(--muted); }
+.deal-row-sub > span:first-child { font-weight: 800; color: var(--ink); font-variant-numeric: tabular-nums; }
 .deal-product { font-weight: 500; color: var(--muted); font-size: 0.9375rem; }
 .no-account { color: var(--warn); }
 .decision { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; margin-top: 0.6rem; }
@@ -438,12 +452,12 @@ ul.plain li::before { content: ""; position: absolute; left: 0; top: 0.62em; wid
 /* ─── saúde do funil (Meu Dia, item 3) ────────────────────────────────────── */
 /* Três leituras rápidas de "o que trava a semana", sem virar ranking nem painel
    novo — uma fita discreta que responde "por onde começo" numa olhada. */
-.health-strip {
-  margin-top: 1.25rem; padding: 0.85rem 1.25rem; border-radius: var(--radius-m);
+.health-strip { margin-top: 1.25rem; display: grid; gap: 0.6rem; }
+.health-item {
+  display: flex; gap: 0.65rem; align-items: baseline; line-height: 1.5; font-size: 0.875rem; color: var(--muted);
+  padding: 0.85rem 1.25rem; border-radius: var(--radius-m);
   background: var(--surface); border: 1px solid var(--line);
-  display: grid; gap: 0.5rem;
 }
-.health-item { display: flex; gap: 0.65rem; align-items: baseline; line-height: 1.5; font-size: 0.875rem; color: var(--muted); }
 .health-item strong { color: var(--ink); font-weight: 700; }
 .health-dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--fechar); transform: translateY(-2px); }
 .health-item-warn .health-dot { background: var(--warn); }
@@ -455,21 +469,20 @@ ul.plain li::before { content: ""; position: absolute; left: 0; top: 0.62em; wid
    Não é um painel novo — é dar destaque de primeira página ao topo de um
    ranking que o motor já ordena. */
 .razor {
-  margin-top: 1.5rem; padding: 0;
-  background: color-mix(in srgb, var(--fechar) 8%, var(--surface));
-  border: 1px solid color-mix(in srgb, var(--fechar) 40%, var(--line));
-  border-radius: var(--radius-m); overflow: hidden;
+  margin-top: 1.5rem; padding: 1.1rem 1.25rem;
+  background: var(--surface); border: 1px solid var(--line);
+  border-radius: var(--radius-m);
+  display: grid; gap: 0.9rem;
 }
-.razor-head {
-  display: flex; align-items: center; justify-content: space-between; gap: 0.75rem;
-  padding: 0.55rem 1.25rem;
-  background: color-mix(in srgb, var(--fechar) 14%, var(--surface));
-  border-bottom: 1px solid color-mix(in srgb, var(--fechar) 35%, var(--line));
+.razor-head { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; }
+.razor-head h2 { font-size: 1.0625rem; color: var(--fechar); }
+.razor-open {
+  font-weight: 700; font-size: 0.8125rem; color: var(--ink); text-decoration: none;
+  padding: 0.35rem 0.85rem; border-radius: var(--radius-s); border: 1px solid var(--line-strong);
+  transition: background 0.15s var(--ease), border-color 0.15s var(--ease);
 }
-.razor-kicker { font-size: 0.75rem; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase; color: var(--fechar); }
-.razor-open { font-weight: 700; font-size: 0.8125rem; color: var(--fechar); text-decoration: none; }
-.razor-open:hover { text-decoration: underline; }
-.razor-body { display: flex; align-items: center; gap: 1rem; padding: 1.1rem 1.25rem; }
+.razor-open:hover { background: var(--surface-2); border-color: var(--muted); }
+.razor-body { display: flex; align-items: center; gap: 1rem; }
 .razor-score { flex: none; }
 .razor-main { min-width: 0; display: grid; gap: 0.35rem; }
 .razor-action { margin: 0; font-family: "Libre Caslon Text", Georgia, serif; font-size: 1.0625rem; line-height: 1.45; color: var(--ink); }
@@ -494,9 +507,6 @@ ul.plain li::before { content: ""; position: absolute; left: 0; top: 0.62em; wid
 /* Dentro da MESMA fila, o deal mais próximo do pico da curva merece um leve
    selo — cor continua sendo fila de ação, não decoração: o ouro/fechar só
    sublinha urgência relativa num grupo que a ordenação sozinha não conta. */
-.deal-row.hot { background: color-mix(in srgb, var(--fechar) 6%, var(--surface)); box-shadow: inset 3px 0 0 var(--fechar); }
-.deal-row.hot:hover { background: color-mix(in srgb, var(--fechar) 10%, var(--surface)); }
-.deal-row.peaked .ruler-mark { box-shadow: 0 0 0 2px color-mix(in srgb, var(--fechar) 45%, var(--surface)); }
 .peak-badge {
   font-size: 0.6875rem; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase;
   color: var(--fechar); background: color-mix(in srgb, var(--fechar) 12%, var(--surface));
@@ -505,16 +515,24 @@ ul.plain li::before { content: ""; position: absolute; left: 0; top: 0.62em; wid
 
 /* ─── score e tags ───────────────────────────────────────────────────────── */
 
+/* anel de progresso: o traço preenchido é o próprio score (0–100), não decoração —
+   quanto mais fechado o anel, mais perto de 100 a chance de ganhar em 30 dias. */
 .score {
+  --ring-bg: var(--surface);
   display: inline-grid; place-items: center; font-weight: 800; border-radius: 50%;
-  color: var(--c); background: var(--c-soft);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 22%, transparent);
-  transition: transform 0.15s var(--ease);
+  color: var(--c);
+  background:
+    radial-gradient(closest-side, var(--ring-bg) 74%, transparent 75% 100%),
+    conic-gradient(var(--c) calc(var(--pct, 0) * 1%), var(--c-soft) 0);
+  transition: transform 0.15s var(--ease), background-color 0.15s var(--ease);
 }
-.deal-row:hover .score { transform: scale(1.06); }
+.deal-row:hover .score, .deals tbody tr:hover .score { --ring-bg: var(--surface-2); transform: scale(1.06); }
 .score-sm { width: 2.6rem; height: 2.6rem; font-size: 0.9375rem; }
-.score-lg { width: 5.75rem; height: 5.75rem; font-size: 2.35rem; letter-spacing: -0.03em; box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--c) 26%, transparent); }
-.score-none { opacity: 0.55; font-weight: 600; } /* sem score: fora do modelo, não é um "0%" */
+.score-lg { width: 5.75rem; height: 5.75rem; font-size: 2.35rem; letter-spacing: -0.03em; }
+.score-none {
+  opacity: 0.55; font-weight: 600;
+  background: var(--c-soft); /* sem score: fora do modelo, não é um "0%" — nunca um anel */
+}
 .on-fechar { --c: var(--fechar); --c-soft: var(--fechar-soft); }
 .on-decidir { --c: var(--decidir); --c-soft: var(--decidir-soft); }
 .on-avancar { --c: var(--avancar); --c-soft: var(--avancar-soft); }
@@ -636,17 +654,28 @@ table.deals { width: 100%; border-collapse: collapse; }
 .bulk-undo-list input[type="checkbox"] { width: 1.05rem; height: 1.05rem; cursor: pointer; }
 .bulk-undo-list .deal-product { color: color-mix(in srgb, var(--avancar) 70%, var(--ink)); }
 .bulk-undo-actions { display: flex; align-items: center; gap: 0.7rem; flex-wrap: wrap; }
-.cell-deal { display: grid; text-decoration: none; font-weight: 700; min-width: 12rem; color: var(--ink); }
+.cell-deal { display: grid; gap: 0.2rem; text-decoration: none; font-weight: 700; min-width: 12rem; color: var(--ink); }
 .cell-deal:hover { color: var(--fechar); text-decoration: underline; }
+.cell-deal-sub { font-weight: 500; font-size: 0.8125rem; color: var(--muted); text-decoration: none; }
+.cell-score { text-align: center; }
+/* Feche esta semana (Meu Dia): mesma tabela do Pipeline, uma linha por ação — a "próxima ação" trunca em uma linha só, o detalhe fica na ficha */
+.close-table .cell-action a span { -webkit-line-clamp: 1; }
+.close-table td.num .peak-badge { margin-left: 0.5rem; vertical-align: 1px; }
 .cell-ruler { min-width: 150px; }
-.cell-action { max-width: 220px; }
+.cell-action { max-width: 240px; min-width: 160px; }
 .cell-action a {
-  display: inline-flex; align-items: center; gap: 0.35rem; max-width: 100%;
-  color: var(--muted); text-decoration: none; font-size: 0.875rem;
+  display: inline-flex; align-items: flex-start; gap: 0.4rem; max-width: 100%;
+  color: var(--ink); text-decoration: none; font-size: 0.875rem; line-height: 1.4;
 }
-.cell-action a span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.cell-action a svg { flex: none; width: 12px; height: 12px; opacity: 0.7; }
-.cell-action a:hover { color: var(--fechar); }
+.cell-action a span { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.cell-action a svg { flex: none; width: 13px; height: 13px; margin-top: 0.15rem; opacity: 0.8; }
+.cell-action a:hover { color: var(--rc, var(--fechar)); }
+.cell-action a:hover svg { opacity: 1; }
+/* a "próxima ação" herda a cor da fila: sinal visual forte de aonde o gesto leva */
+tr.row-fechar .cell-action a { color: var(--fechar); }
+tr.row-avancar .cell-action a { color: color-mix(in srgb, var(--avancar) 70%, var(--ink)); }
+tr.row-prospectar .cell-action a { color: var(--muted); }
+tr.row-decidir .cell-action a { color: color-mix(in srgb, var(--decidir) 78%, var(--ink)); }
 .row-fechar td:first-child, .row-decidir td:first-child, .row-avancar td:first-child, .row-prospectar td:first-child { box-shadow: inset 3px 0 0 var(--rc), 1px 0 0 var(--line); }
 .row-fechar { --rc: var(--fechar); } .row-decidir { --rc: var(--decidir); }
 .row-avancar { --rc: var(--avancar); } .row-prospectar { --rc: var(--prospectar); }
@@ -689,7 +718,7 @@ table.deals { width: 100%; border-collapse: collapse; }
 .deal-head .no-account { color: #dc9276; }
 .deal-meta { margin-top: 0.6rem; color: color-mix(in srgb, #f3ede0 72%, transparent); }
 .deal-score { display: grid; justify-items: end; gap: 0.6rem; max-width: 19rem; text-align: right; font-size: 0.875rem; color: color-mix(in srgb, #f3ede0 75%, transparent); }
-.deal-head .score { box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--c) 45%, transparent), 0 4px 14px rgba(6, 12, 21, 0.35); }
+.deal-head .score { --ring-bg: var(--navy); filter: drop-shadow(0 4px 14px rgba(6, 12, 21, 0.35)); }
 
 .action {
   margin-top: 1.5rem; padding: 1.2rem 1.4rem; border-radius: var(--radius-m);
@@ -715,18 +744,33 @@ table.deals { width: 100%; border-collapse: collapse; }
 .reason-down .reason-icon { color: var(--decidir); background: var(--decidir-soft); }
 .reason-info .reason-icon { color: var(--muted); background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--line-strong); }
 .reason-warn .reason-icon { color: var(--surface); background: var(--warn); }
+/* o texto também carrega o sinal do ícone (não só o círculo): o motivo "sobe" ou
+   "desce" na leitura, sem depender de decodificar o ícone à esquerda. Misturado
+   com a tinta para manter o contraste em parágrafos longos. */
+.reason-up { color: color-mix(in srgb, var(--avancar) 78%, var(--ink)); }
+.reason-down { color: color-mix(in srgb, var(--decidir) 78%, var(--ink)); }
+.reason-info { color: var(--muted); }
+.reason-warn { color: var(--warn); }
 /* o motivo que mais pesa: mesmo texto, um degrau mais forte que os demais */
 .reason-primary { font-weight: 600; color: var(--ink); }
 .reason-primary .reason-icon { width: 1.9rem; height: 1.9rem; }
 
-/* motivo em linha, dentro da deal-row (Meu Dia, Contas): compacto, 2 linhas no máximo */
+/* motivo em linha, dentro da deal-row (Meu Dia, Contas): compacto, 2 linhas no
+   máximo. A cor direcional espalha no texto — o "porquê" salta à vista na fila,
+   não só na ficha. */
 .reason-compact {
-  grid-template-columns: 1.15rem 1fr; gap: 0.45rem; margin: 0.15rem 0 0;
-  font-size: 0.8125rem; color: var(--muted); line-height: 1.4;
+  grid-template-columns: 1.2rem 1fr; gap: 0.5rem; margin: 0.2rem 0 0;
+  font-size: 0.875rem; color: var(--muted); line-height: 1.45;
 }
-.reason-compact .reason-icon { width: 1.15rem; height: 1.15rem; }
-.reason-compact .reason-icon svg { width: 10px; height: 10px; }
+.reason-compact .reason-icon { width: 1.2rem; height: 1.2rem; }
+.reason-compact .reason-icon svg { width: 11px; height: 11px; }
 .reason-compact .reason-text { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+/* a cor direcional do motivo espalha no texto da linha (maior especificidade que
+   o base .reason-compact) — o "porquê sobe/desce" salta à vista na fila, sem
+   depender de ler o ícone ao lado */
+.reason-compact.reason-up { color: color-mix(in srgb, var(--avancar) 82%, var(--ink)); }
+.reason-compact.reason-down { color: color-mix(in srgb, var(--decidir) 82%, var(--ink)); }
+.reason-compact.reason-warn { color: color-mix(in srgb, var(--warn) 82%, var(--ink)); }
 
 .context ul { padding-left: 0; list-style: none; display: grid; gap: 0.6rem; max-width: 76ch; }
 .context ul li { position: relative; padding-left: 1.25rem; line-height: 1.55; }
@@ -820,10 +864,13 @@ table.deals { width: 100%; border-collapse: collapse; }
   select { display: block; }
   main { padding: 1.5rem 1.1rem 3.5rem; }
   .lede { font-size: 1.1rem; }
-  .razor-body { gap: 0.75rem; padding: 0.9rem 1rem; }
-  .razor-kicker, .razor-open { letter-spacing: 0.03em; }
+  .razor { padding: 0.9rem 1rem; }
+  .razor-body { gap: 0.75rem; }
+  .razor-open { letter-spacing: 0.03em; }
   .decide-split { align-items: flex-start; }
   .decide-split .queue-all { margin-left: 0; }
+  .pager-info { margin-right: 0; flex-basis: 100%; }
+  .pager .btn { min-height: 0; }
   .stat-row { grid-template-columns: 1fr; gap: 0.75rem; margin-bottom: 2rem; }
   .queue-pair { grid-template-columns: 1fr; gap: 1rem; }
   .deal-row { grid-template-columns: 2.9rem minmax(0, 1fr); }

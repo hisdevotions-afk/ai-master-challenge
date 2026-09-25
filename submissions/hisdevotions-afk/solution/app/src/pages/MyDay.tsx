@@ -170,7 +170,7 @@ export function MyDay() {
       {now && (
         <aside className="razor" aria-label="Ação do momento">
           <div className="razor-head">
-            <span className="razor-kicker">Ação do momento</span>
+            <h2>Ação do momento</h2>
             <a className="razor-open" href={link("deal", now.id)}>Abrir ficha</a>
           </div>
           <div className="razor-body">
@@ -186,11 +186,51 @@ export function MyDay() {
 
       <section className="queue queue-fechar">
         <QueueHead bucket="fechar" title="Feche esta semana" count={fechar.length} />
-        <ol className="deal-list">
-          {fechar.slice(0, 6).map((d) => (
-            <DealRow key={d.id} deal={d} hot={d === now} peakGap={peakGap(d)} />
-          ))}
-        </ol>
+        {fechar.length > 0 && (
+          <div className="table-wrap close-table">
+            <table className="deals">
+              <thead>
+                <tr>
+                  <th scope="col">Deal</th>
+                  <th scope="col" className="cell-score">Score</th>
+                  <th scope="col" className="num">Probabilidade</th>
+                  <th scope="col" className="num">Dias</th>
+                  <th scope="col">Próxima ação</th>
+                </tr>
+              </thead>
+              <tbody>
+                {fechar.slice(0, 6).map((d) => {
+                  const closeToPeak = peakGap(d) <= 5;
+                  return (
+                    <tr key={d.id} className={d === now ? "row-fechar" : undefined}>
+                      <td>
+                        <a className="cell-deal" href={link("deal", d.id)}>
+                          <span>
+                            <span className={d.account ? "" : "no-account"}>{d.account ?? "Sem conta vinculada"}</span>
+                            {" · "}
+                            <span className="deal-product">{d.product}</span>
+                          </span>
+                          <span className="cell-deal-sub">{money(d.price)} · {d.agent}</span>
+                        </a>
+                      </td>
+                      <td className="cell-score"><Score deal={d} /></td>
+                      <td className="num">{pct(d.win_prob)}</td>
+                      <td className="num">
+                        {d.age}d{closeToPeak && <span className="peak-badge">no pico</span>}
+                      </td>
+                      <td className="cell-action">
+                        <a href={link("deal", d.id)} title={d.action}>
+                          <span>{d.action}</span>
+                          <svg viewBox="0 0 14 14" aria-hidden="true"><path d="M4 10 10 4M10 4H5.5M10 4v4.5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                        </a>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
         {fechar.length === 0 && (
           <Empty>
             {avancar.length > 0
