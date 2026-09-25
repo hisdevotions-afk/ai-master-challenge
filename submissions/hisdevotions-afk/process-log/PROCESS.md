@@ -332,3 +332,25 @@ O que fiz:
 8. Atualizei o README com a URL publicada: `https://hisdevotions-afk.github.io/ai-master-challenge/`.
 
 Não abri o PR. Faltam os campos do template (nome, LinkedIn, data), e abrir o PR é o passo que efetivamente inscreve a submissão. Isso fica para quem vai preencher esses campos e revisar o resultado antes do envio.
+
+## 19. Tipografia, hierarquia e centralização
+
+[EU] Pedi correções de tipografia, hierarquia, centralização e espaçamento: os textos pareciam agrupados à esquerda da tela, com pouco respiro.
+
+[IA] Antes de mexer em CSS, mediu a página renderizada em vez de supor o problema pelo código. Num viewport de 1920px, o cabeçalho de cada tela (h1 e o parágrafo de resumo) ficava limitado a 72ch de largura (cerca de 660px) e colado na borda esquerda do canvas, enquanto os cards de KPI e as tabelas logo abaixo ocupavam a largura inteira (por volta de 1360px). Isso deixava um vão vazio de mais de 700px ao lado do título, exatamente o efeito de "texto grudado à esquerda" descrito no pedido.
+
+A segunda medição, num viewport de 1440px (o tamanho mais comum de notebook, e bem mais realista que um monitor ultrawide), mostrou uma causa adicional: o `main` e a faixa de filtros já tinham `max-width: 1440px` com `margin-inline: auto`, mas esse auto-centering só existe quando a tela sobra além de 244px de barra lateral mais 1440px de conteúdo, ou seja, acima de 1680px de largura. Abaixo disso, que é a maioria das telas reais, a única folga nas bordas vinha de um padding fixo de 2,5rem (40px), então o conteúdo ficava colado na borda direita da janela, sem nenhuma margem correspondente.
+
+[EU] Corrigi as duas causas em `styles.css`, sem mudar a identidade visual documentada no DESIGN.md nem a decisão anterior de manter tabelas em largura cheia:
+
+- O `max-width: 72ch` saiu do `.page-head` (o contêiner) e passou só para o `.lede` (o parágrafo). Um título de uma linha como "Pipeline" ou "Forecast" não precisa de limite de medida de leitura; quem precisa é o parágrafo de várias linhas.
+- O `.lede` ganhou mais peso visual: de 1,25rem para 1,3125rem de tamanho, de 1,5 para 1,6 de entrelinha, e a largura máxima passou de 72ch (medido na fonte sans do body, por herança, o que já era impreciso) para 46rem fixos, medidos na própria fonte serifada do parágrafo.
+- O espaçamento do `.page-head` aumentou: o vão entre título e parágrafo foi de 0,6rem para 0,85rem, e a margem antes do conteúdo seguinte, de 2,25rem para 3rem.
+- O padding lateral de `main` e `.filters` trocou o valor fixo de 2,5rem por `clamp(1,75rem, 3,5vw, 4rem)`, que cresce com a largura da tela em vez de ficar travado. Isso dá uma margem real em qualquer notebook comum, não só em monitores ultrawide.
+- No celular (abaixo de 860px), adicionei um ajuste equivalente para `.page-head` (de volta a 0,6rem de vão e 2rem de margem) e tirei o limite de largura do `.lede`, porque numa tela de 390px de largura o parágrafo já ocupa a coluna inteira e o corte de medida de leitura não faz sentido.
+
+Como essas classes (`.page-head`, `.lede`) são compartilhadas por todas as telas com cabeçalho de página (Overview, Pipeline, Forecast, Contas, Time), a correção vale para o app inteiro num commit só, sem repetir a mudança tela por tela.
+
+[EU] Verifiquei sem depender de screenshot: rodei o `detect.mjs` do Impeccable nos escopos `layout` e `type` (voltou `[]` nos dois, sem achado), remedi a página num iframe da mesma origem em 1440px e 1920px para confirmar os números (o padding lateral de `main` foi de 40px para cerca de 50px em 1440px; o `.lede` foi de 659px para 736px de largura, com fonte e entrelinha maiores), rodei `tsc --noEmit` e `npm run build`, que passaram limpos.
+
+Texto deste log revisado com a skill humanizer.
